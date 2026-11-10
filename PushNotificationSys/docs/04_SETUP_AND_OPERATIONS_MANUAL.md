@@ -17,10 +17,10 @@
 | **Operating System** | Linux (Ubuntu/Debian/Fedora), macOS 13+, Windows 11 (via WSL2) | Linux (Ubuntu 22.04 LTS / Amazon Linux 2023) | Linux Container Orchestration (K8s) |
 
 ### 1.2 Toolchain Dependencies
-1. **Java Development Kit (CRITICAL):**
-   - **Mandatory Version:** **Amazon Corretto Java 21 LTS** (`21.0.10-amzn`).
-   - ⚠️ **DO NOT USE Java 25:** Default host Java 25 breaks Lombok annotation processing (`com.sun.tools.javac.code.TypeTag :: UNKNOWN`).
-   - SDKMAN path: `/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn`
+1. **Java Development Kit:**
+   - **Supported Version:** **Amazon Corretto Java 25 LTS** (`25.0.3-amzn`) or OpenJDK 25.
+   - **Framework Baseline:** Spring Boot 4.1.0 (Spring Framework 7.0, Jakarta EE 11).
+   - Lombok `1.18.42+` and MapStruct `1.6.3+` are configured for Java 25 compiler compatibility.
 2. **Node.js & Package Manager:**
    - Node.js `v18.x` or `v20.x` LTS
    - npm `v9+`
@@ -56,7 +56,7 @@ flowchart TD
 
     subgraph ModeA["Mode A: Hybrid Local Dev"]
         D1[docker compose up -d postgres redis kafka]
-        D2[Backend: mvn spring-boot:run with Java 21]
+        D2[Backend: mvn spring-boot:run with Java 25 & Spring Boot 4.1.0]
         D3[Frontend: npm run dev]
         D1 --> D2 --> D3
     end
@@ -84,14 +84,10 @@ docker compose up -d postgres redis kafka
 docker compose ps
 ```
 
-#### Step 2: Launch Spring Boot Backend (Java 21)
-Always ensure `JAVA_HOME` points to Amazon Corretto Java 21:
+#### Step 2: Launch Spring Boot Backend (Java 25 & Spring Boot 4.1.0)
 ```bash
-export JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn
-export PATH=$JAVA_HOME/bin:$PATH
-
-# Verify correct JDK version
-java -version
+# Verify JDK version
+java -version # Amazon Corretto 25 or OpenJDK 25
 
 # Launch Spring Boot
 mvn spring-boot:run -f backend/pom.xml
@@ -421,7 +417,7 @@ The portal includes two built-in developer testing tools:
 
 | Symptom | Probable Cause | Action |
 | :--- | :--- | :--- |
-| **`500 Internal Server Error` on backend compilation** | Java 25 running instead of Java 21 | Export `JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn` |
+| **`Compilation Error` on older Lombok** | Legacy Lombok version parsing Java 25 AST | Verify `lombok.version` is `>= 1.18.42` and `mapstruct.version` is `>= 1.6.3` in `pom.xml` |
 | **Pushes not arriving on Android** | FCM Service Account JSON missing or invalid | Go to *App Settings > Credentials > FCM* and click **Test Connection** |
 | **Pushes not arriving on iOS** | APNs `.p8` key invalid or Bundle ID mismatch | Verify Key ID, Team ID, and matching Bundle ID in APNs credentials |
 | **`429 Too Many Requests` response** | Redis token-bucket rate limit exceeded | Check `RateLimitingService`. Defaults to 100 req/min for SDK keys. |

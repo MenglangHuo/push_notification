@@ -189,9 +189,9 @@ class PlatformEndToEndIntegrationTest {
         mockMvc.perform(get("/actuator/metrics"))
                 .andExpect(status().isOk());
 
-        // 9. OpenAPI 3.0 Documentation
+        // 9. OpenAPI 3.1 Documentation
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.openapi").value("3.0.1"));
+                .andExpect(jsonPath("$.openapi").value("3.1.0"));
     }
 }

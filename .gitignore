@@ -50,6 +50,24 @@ lerna-debug.log*
 Thumbs.db
 
 # ==========================================
+# Root-Level Files & Duplicates (Git tracks only PushNotificationSys/)
+# ==========================================
+/docs/
+/README.md
+/API_REFERENCE.md
+/AGENTS.md
+/AG_RULES.md
+/BACKEND_ARCHITECTURE.md
+/FRONTEND_ARCHITECTURE.md
+/MEMORY.md
+/architecture_plan.md
+/postman_collection.json
+/*.json
+/.github/
+/.idea/
+/.antigravity/
+
+# ==========================================
 # AI Agent Caches & Local Sessions
 # ==========================================
 .antigravity/

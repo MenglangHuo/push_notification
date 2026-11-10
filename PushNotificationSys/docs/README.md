@@ -43,13 +43,13 @@ docs/
 ```
 
 ### Quick Links:
-0. [**Process, System Mechanics & Integration Guide (`process.md`)**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/process.md): Plain-English walkthrough of how the system works, 8 problems solved one by one, startup configs, mobile/web integration, and FAQ.
-1. [**Admin Frontend Playground & Verification Guide (`ADMIN_PLAYGROUND_GUIDE.md`)**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/ADMIN_PLAYGROUND_GUIDE.md): Hands-on UI click-by-click playground walkthrough for testing all features, verifying endpoints, triggers, and backend states.
-2. [**OneSignal Comparison Guide (`ONESIGNAL_COMPARISON.md`)**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/ONESIGNAL_COMPARISON.md): Architectural, process, financial (90%+ savings), and feature matrix comparison between this platform and OneSignal SaaS.
-3. [**01. Business Flow & Lifecycle**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/01_BUSINESS_FLOW_AND_LIFECYCLE.md): Understand the 3 key personas (Marketer, App User, Developer) and the 5 critical lifecycles (Tenant Onboarding, Device Subscription, Audience Segmentation, Campaign Dispatch, Telemetry Attribution).
-4. [**02. Real-World Examples**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/02_REAL_WORLD_EXAMPLES.md): Detailed walkthroughs of E-commerce Flash Sales, Transactional OTP alerts, Dormant User Re-engagement, and Token Churn Handling with concrete JSON payloads and database state transitions.
-5. [**03. Developer Integration Guide**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/03_DEVELOPER_INTEGRATION_GUIDE.md): Practical API reference, SDK quickstart, Kafka topic architecture, and operational runbook for engineers onboarding onto the codebase.
-6. [**04. Setup & Operations Manual**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/04_SETUP_AND_OPERATIONS_MANUAL.md): Complete prerequisites, bare-metal vs Docker startup runbook, initial developer credentials vault configuration, and comprehensive admin app management guide for client onboarding.
+0. [**Process, System Mechanics & Integration Guide (`process.md`)**](process.md): Plain-English walkthrough of how the system works, 8 problems solved one by one, startup configs, mobile/web integration, and FAQ.
+1. [**Admin Frontend Playground & Verification Guide (`ADMIN_PLAYGROUND_GUIDE.md`)**](ADMIN_PLAYGROUND_GUIDE.md): Hands-on UI click-by-click playground walkthrough for testing all features, verifying endpoints, triggers, and backend states.
+2. [**OneSignal Comparison Guide (`ONESIGNAL_COMPARISON.md`)**](ONESIGNAL_COMPARISON.md): Architectural, process, financial (90%+ savings), and feature matrix comparison between this platform and OneSignal SaaS.
+3. [**01. Business Flow & Lifecycle**](01_BUSINESS_FLOW_AND_LIFECYCLE.md): Understand the 3 key personas (Marketer, App User, Developer) and the 5 critical lifecycles (Tenant Onboarding, Device Subscription, Audience Segmentation, Campaign Dispatch, Telemetry Attribution).
+4. [**02. Real-World Examples**](02_REAL_WORLD_EXAMPLES.md): Detailed walkthroughs of E-commerce Flash Sales, Transactional OTP alerts, Dormant User Re-engagement, and Token Churn Handling with concrete JSON payloads and database state transitions.
+5. [**03. Developer Integration Guide**](03_DEVELOPER_INTEGRATION_GUIDE.md): Practical API reference, SDK quickstart, Kafka topic architecture, and operational runbook for engineers onboarding onto the codebase.
+6. [**04. Setup & Operations Manual**](04_SETUP_AND_OPERATIONS_MANUAL.md): Complete prerequisites, bare-metal vs Docker startup runbook, initial developer credentials vault configuration, and comprehensive admin app management guide for client onboarding.
 
 ---
 

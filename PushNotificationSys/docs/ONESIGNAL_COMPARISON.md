@@ -53,11 +53,12 @@ flowchart TB
 
     subgraph SelfHosted["Our Platform (Self-Hosted Sovereign Monolith)"]
         direction TB
-        SH_App[Client Mobile / Web App] -->|Standard REST API / SDK Key| SH_Edge[Ingress: Spring Boot 3.3 / Java 21]
+        SH_App[Client Mobile / Web App] -->|Standard REST API / SDK Key| SH_Edge[Ingress: Spring Boot 4.1 / Java 25]
         SH_Server[Company Backend Server] -->|REST API: os_live_...| SH_Edge
-        SH_Edge -->|AES-256 Vault / TenantContext| SH_DB[(Your Private PostgreSQL 16)]
+        SH_Edge -->|AES-256 Vault / TenantContext| SH_DB[(Your Private PostgreSQL 17)]
         SH_Edge -->|Asynchronous Event| SH_Kafka[Your Apache Kafka 3.7 Broker]
-        SH_Kafka -->|Parallel Chunks of 500| SH_Workers[Dedicated FCM / APNs / WebPush Workers]
+        SH_Workers[Dedicated FCM / APNs / WebPush Workers]
+        SH_Kafka -->|Parallel Chunks of 500| SH_Workers
         SH_Workers -->|HTTP/2 & v1| SH_Gateways[Apple APNs / Google FCM / Web]
         SH_Edge -->|WebSocket STOMP| SH_Redis[(Your Redis 7 Cache & ShedLock)]
         
@@ -72,10 +73,10 @@ flowchart TB
 | Dimension | OneSignal (Cloud SaaS) | Our Platform (Self-Hosted) |
 | :--- | :--- | :--- |
 | **Hosting Model** | Multi-tenant public cloud managed by OneSignal Inc. | 100% self-hosted on your own VPC, bare metal, or Kubernetes cluster. |
-| **Data Storage** | Hosted on OneSignal's proprietary database clusters in US/EU. | Fully owned PostgreSQL 16 with standard relational tables and JSONB. |
+| **Data Storage** | Hosted on OneSignal's proprietary database clusters in US/EU. | Fully owned PostgreSQL 17 with standard relational tables and JSONB. |
 | **Messaging Bus** | Proprietary internal queues (Kafka / Rust / Go microservices). | Apache Kafka 3.7 with dedicated partitioned topics (`dispatch.fcm`, `dispatch.apns`, `dispatch.webpush`). |
 | **SDK Dependency** | Heavy proprietary SDK (includes analytics, in-app webviews, location tracking). | Lightweight REST API calls (`POST /sdk/v1/devices`) using any standard HTTP client or native OS libraries. |
-| **Code Access** | Closed-source backend (black box). | 100% source code access (Spring Boot, Java 21, Vue 3). |
+| **Code Access** | Closed-source backend (black box). | 100% source code access (Spring Boot 4.1, Java 25, Vue 3). |
 
 ---
 
@@ -293,7 +294,7 @@ When using OneSignal, sensitive information is sent across external borders:
 | **Raw Log CSV Export** | Restricted / Paid tiers | Native CSV streaming endpoint (Free & Unlimited) | **Our Platform** |
 | **Email & SMS Omni-Channel** | Built-in (Twilio/SendGrid integration) | Push & WebSocket focused (Email/SMS via plugins) | **OneSignal** |
 | **Visual Journey Builder** | Advanced drag-and-drop workflow | Focus on Campaigns & API automation | **OneSignal** |
-| **Code Customizability** | Zero (Closed source) | Full (Spring Boot 3.3, Java 21, Vue 3) | **Our Platform** |
+| **Code Customizability** | Zero (Closed source) | Full (Spring Boot 4.1, Java 25, Vue 3) | **Our Platform** |
 
 ---
 
@@ -380,7 +381,7 @@ await axios.post('https://push.yourdomain.com/api/v1/notifications', {
 ```
 
 ### Step 4: Update Mobile Client Apps
-Replace the OneSignal SDK registration with the standard `POST /sdk/v1/devices` call using your `os_pub_...` SDK key (as documented in [`process.md`](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/process.md#33-mobile--web-client-integration-android-ios-web)).
+Replace the OneSignal SDK registration with the standard `POST /sdk/v1/devices` call using your `os_pub_...` SDK key (as documented in [`process.md`](process.md#33-mobile--web-client-integration-android-ios-web)).
 
 ---
 

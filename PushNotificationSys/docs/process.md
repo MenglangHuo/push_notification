@@ -244,10 +244,10 @@ Before running or testing the system, make sure your machine meets these require
 | Component | Minimum Specification | Why It Is Required |
 | :--- | :--- | :--- |
 | **Operating System** | Linux (Ubuntu/Debian/Fedora), macOS 13+, or Windows 11 (WSL2) | Platform runs native containers and POSIX scripts. |
-| **Java JDK (CRITICAL)** | **Amazon Corretto Java 21 LTS** (`21.0.10-amzn`) | ⚠️ **DO NOT USE Java 25:** Default host Java 25 breaks Lombok compilation with `TypeTag :: UNKNOWN`. Java 21 LTS is mandatory. |
+| **Java JDK (CRITICAL)** | **Amazon Corretto Java 25 LTS** (`25.0.3-amzn`) or OpenJDK 25 | Standardized baseline supporting Lombok 1.18.42+ & MapStruct 1.6.3+. |
 | **Node.js & npm** | Node.js `v18.x` or `v20.x` LTS, npm `v9+` | For building and running the Vue 3 Admin Portal. |
 | **Docker & Compose** | Docker `v24+`, Docker Compose `v2.20+` | For containerizing PostgreSQL 17, Redis 7, and Kafka 3.7. |
-| **Apache Maven** | Maven `v3.9+` | For compiling and running the Spring Boot 3.3.4 backend. |
+| **Apache Maven** | Maven `v3.9+` | For compiling and running the Spring Boot 4.1.0 backend. |
 | **Hardware** | 2 vCPUs, 4 GB RAM (Dev); 4+ vCPUs, 8+ GB RAM (Prod) | Kafka, PostgreSQL, and Spring Boot memory requirements. |
 
 ---
@@ -329,10 +329,8 @@ docker compose up -d postgres redis kafka
 # Step 3: Verify the containers are running and healthy
 docker compose ps
 
-# Step 4: Export Java 21 path (MANDATORY)
-export JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn
-export PATH=$JAVA_HOME/bin:$PATH
-java -version   # Must output 21.x (NOT 25.x)
+# Step 4: Verify Java 25 (LTS)
+java -version   # Outputs 25.x (Amazon Corretto 25 or OpenJDK 25)
 
 # Step 5: Start Spring Boot backend
 mvn spring-boot:run -f backend/pom.xml
@@ -721,7 +719,7 @@ They are never stored in plaintext. They are encrypted using **AES-256-GCM** wit
 
 ## Summary Checklist to Get Started
 1. Run `docker compose up -d postgres redis kafka`
-2. Start backend: `mvn spring-boot:run` (using Java 21)
+2. Start backend: `mvn spring-boot:run` (using Java 25 & Spring Boot 4.1.0)
 3. Start frontend: `npm run dev`
 4. Run automated test: `bash scripts/verify_platform.sh`
 5. Configure your client apps with `X-Sdk-Key` and your server with `X-Api-Key`
@@ -729,4 +727,4 @@ They are never stored in plaintext. They are encrypted using **AES-256-GCM** wit
 
 > [!TIP]
 > **Wondering how this compares to OneSignal SaaS?**  
-> Check out the complete breakdown in [**OneSignal Comparison Guide (`ONESIGNAL_COMPARISON.md`)**](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/ONESIGNAL_COMPARISON.md) covering architecture, step-by-step process differences, 90%+ cost savings, and migration steps.
+> Check out the complete breakdown in [**OneSignal Comparison Guide (`ONESIGNAL_COMPARISON.md`)**](ONESIGNAL_COMPARISON.md) covering architecture, step-by-step process differences, 90%+ cost savings, and migration steps.

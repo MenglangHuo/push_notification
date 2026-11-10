@@ -10,13 +10,13 @@
 
 | Layer | Component | Version | Why This Tech Was Chosen |
 | :--- | :--- | :--- | :--- |
-| **Language & Framework** | Java / Spring Boot | 21 LTS / 3.3.4 | High concurrency, type safety, virtual threads capability, proven enterprise scale. |
-| **Persistence** | PostgreSQL | 16 | ACID compliance, JSONB support for AST filters, `uuid-ossp`, and `pg_trgm` for search. |
+| **Language & Framework** | Java / Spring Boot | 25 LTS / 4.1.0 | High concurrency, type safety, Scoped Values, Virtual Threads, Spring Framework 7. |
+| **Persistence** | PostgreSQL | 17 | ACID compliance, JSONB support for AST filters, `uuid-ossp`, and `pg_trgm` for search. |
 | **Caching & Pub/Sub** | Redis | 7 (Lettuce) | Microsecond token bucket rate limiting, ShedLock distributed locks, and STOMP backplane. |
 | **Event Backbone** | Apache Kafka | 3.7 | Decouples HTTP ingestion from push gateways; guarantees at-least-once partitioned fan-out. |
 | **Database Migrations** | Flyway | Core 10+ | Strict version-controlled schema evolution (`V1` to `V5`); eliminates manual DDL drifts. |
 | **Distributed Lock** | ShedLock | 5.14.0 | Coordinates scheduled campaign execution across autoscaling cluster instances. |
-| **Cryptography** | Bouncy Castle | 1.78.1 | RFC 8291 / 8292 Web Push encryption (AES-128-GCM, ECDH) and Argon2id password hashing. |
+| **Cryptography** | Bouncy Castle | 1.78.1 / 1.80+ | RFC 8291 / 8292 Web Push encryption (AES-128-GCM, ECDH) and Argon2id password hashing. |
 
 ---
 
@@ -24,12 +24,9 @@
 
 ### Prerequisites
 1. **Docker & Docker Compose** (running locally)
-2. **Java 21 (Mandatory):**
+2. **Java 25 (LTS):**
    ```bash
-   # Verify Java 21 via SDKMAN
-   export JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn
-   export PATH=$JAVA_HOME/bin:$PATH
-   java -version # Must return 21.x (NOT Java 25)
+   java -version # Amazon Corretto 25 or OpenJDK 25
    ```
 
 ### Step-by-Step Setup
@@ -43,14 +40,10 @@ docker compose up -d postgres redis kafka
 # 3. Verify Docker health
 docker compose ps
 
-# 4. Build and run unit tests with Java 21
-JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn \
-PATH=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn/bin:$PATH \
+# 4. Build and run unit tests with Java 25 & Spring Boot 4.1.0
 mvn clean test -f backend/pom.xml
 
 # 5. Boot the backend server locally
-JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn \
-PATH=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn/bin:$PATH \
 mvn spring-boot:run -f backend/pom.xml
 
 # 6. Run the End-to-End Automated Platform Verification
@@ -235,7 +228,7 @@ events.ingest          ---> Event Consumer (Micro-batch DB persistence)
 ## 6. Code Review Checklist for Engineers
 
 When reviewing pull requests in this codebase, verify these rules:
-- [ ] **Java 21 Compatibility:** Does the new code compile with Java 21 without Lombok errors?
+- [ ] **Java 25 & Spring Boot 4 Compatibility:** Does the new code compile with Java 25 & Spring Boot 4 without Lombok or Jackson errors?
 - [ ] **Tenant Isolation:** Are all queries filtered by `appId` or scoped through `TenantContextHolder`?
 - [ ] **Zero Credential Leaks:** Are provider secrets (APNs p8, FCM JSON) encrypted via `CryptoVaultService`? Are they excluded from logs?
 - [ ] **SSRF Validation:** Are all external WebPush or webhook endpoints checked against `SsrfValidator`?

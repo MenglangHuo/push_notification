@@ -46,18 +46,14 @@ The playground connects the **Vue 3 Admin Web Portal** directly with the **Sprin
 
 ### Pre-Flight Launch (Two Terminals)
 
-#### Terminal 1: Infrastructure & Backend (Java 21)
+#### Terminal 1: Infrastructure & Backend (Java 25 & Spring Boot 4.1.0)
 ```bash
 cd /media/menglanghuo/Menglang/Bronx/PushNotificationSys/PushNotificationSys
 
 # 1. Start Docker containers
 docker compose up -d postgres redis kafka
 
-# 2. Export Java 21 path (MANDATORY: Do not use Java 25)
-export JAVA_HOME=/home/menglanghuo/.sdkman/candidates/java/21.0.10-amzn
-export PATH=$JAVA_HOME/bin:$PATH
-
-# 3. Launch Spring Boot Backend
+# 2. Launch Spring Boot Backend (Java 25)
 mvn spring-boot:run -f backend/pom.xml
 ```
 *Wait until you see: `Started PushPlatformApplication in X.XXX seconds (process running for X.XXX)`*
