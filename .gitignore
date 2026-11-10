@@ -53,7 +53,7 @@ Thumbs.db
 # Root-Level Files & Duplicates (Git tracks only PushNotificationSys/)
 # ==========================================
 /docs/
-/README.md
+# /README.md
 /API_REFERENCE.md
 /AGENTS.md
 /AG_RULES.md
