@@ -252,13 +252,17 @@ onMounted(() => {
       v-model="showInviteModal"
       title="Invite Team Member"
       subtitle="Send an invitation link to collaborate in this workspace"
-      :initial-width="480"
-      :initial-height="340"
+      :icon="UserPlus"
+      :initial-width="500"
       @close="showInviteModal = false"
     >
-      <form @submit.prevent="handleInvite" class="space-y-4 p-2 text-left">
-        <div v-if="inviteError" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
-          {{ inviteError }}
+      <form id="invite-member-form" @submit.prevent="handleInvite" class="p-6 space-y-5 text-left">
+        <div
+          v-if="inviteError"
+          class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2"
+        >
+          <AlertCircle class="w-4 h-4 shrink-0 text-rose-500" />
+          <span>{{ inviteError }}</span>
         </div>
 
         <BaseInput
@@ -268,29 +272,36 @@ onMounted(() => {
           placeholder="developer@company.com"
           required
           :icon="Mail"
+          size="md"
         />
 
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Initial Workspace Role
           </label>
           <CustomSelect
             v-if="roleOptions.length > 0"
             v-model="inviteRoleId"
             :options="roleOptions"
+            :block="true"
             size="md"
           />
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showInviteModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton type="submit" variant="primary" :loading="isInviting">
-            Send Invite
-          </BaseButton>
-        </div>
       </form>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showInviteModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          type="submit"
+          form="invite-member-form"
+          variant="primary"
+          :loading="isInviting"
+        >
+          Send Invite
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

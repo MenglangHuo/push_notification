@@ -322,62 +322,69 @@ onMounted(() => {
       v-model="showCreateModal"
       title="Generate API Secret Key"
       subtitle="Issue authenticated credentials for application dispatch"
-      :initial-width="500"
-      :initial-height="460"
+      :icon="KeyRound"
+      :initial-width="540"
       @close="showCreateModal = false"
     >
-      <form @submit.prevent="handleCreateKey" class="space-y-4 p-2 text-left">
+      <form id="create-key-form" @submit.prevent="handleCreateKey" class="p-6 space-y-5 text-left">
         <BaseInput
           v-model="newKeyName"
           label="Key Description / Name"
           placeholder="e.g. Orders Backend Microservice"
           required
           :icon="KeyRound"
+          size="md"
         />
 
-        <div>
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Key Classification
           </label>
           <CustomSelect
             v-model="newKeyType"
             :options="keyTypeOptions"
-            size="sm"
+            :block="true"
+            size="md"
           />
         </div>
 
         <!-- Scopes Selection -->
-        <div class="space-y-1.5">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Permission Scopes
           </label>
-          <div class="space-y-1 p-2 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+          <div class="space-y-1.5 p-3 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200/90 dark:border-slate-800">
             <label
               v-for="s in availableScopes"
               :key="s.id"
-              class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-900"
+              class="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer p-2 rounded-xl transition-colors hover:bg-white dark:hover:bg-slate-900 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 select-none"
             >
               <input
                 type="checkbox"
                 :checked="selectedScopes.includes(s.id)"
                 @change="toggleScope(s.id)"
-                class="rounded text-indigo-600 focus:ring-indigo-500"
+                class="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer"
               />
-              <span class="font-mono text-[11px]">{{ s.id }}</span>
-              <span class="text-[10px] text-slate-400">({{ s.label }})</span>
+              <span class="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100">{{ s.id }}</span>
+              <span class="text-[11px] text-slate-400">({{ s.label }})</span>
             </label>
           </div>
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showCreateModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton type="submit" variant="primary" :loading="isCreating">
-            Generate Key
-          </BaseButton>
-        </div>
       </form>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showCreateModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          type="submit"
+          form="create-key-form"
+          variant="primary"
+          :loading="isCreating"
+        >
+          Generate Key
+        </BaseButton>
+      </template>
     </ModernModal>
 
     <!-- Show Secret One-Time Modal -->
@@ -385,24 +392,25 @@ onMounted(() => {
       v-model="showSecretModal"
       title="API Secret Key Generated"
       subtitle="Save this key securely. You will not be able to view it again."
-      :initial-width="500"
-      :initial-height="340"
+      :icon="AlertTriangle"
+      icon-class="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20"
+      :initial-width="520"
       @close="showSecretModal = false"
     >
-      <div class="p-2 space-y-4 text-left">
-        <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+      <div class="p-6 space-y-5 text-left">
+        <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2.5">
           <AlertTriangle class="w-4 h-4 shrink-0 text-amber-500" />
-          <span>Copy this secret now. It is hashed immediately and cannot be retrieved later.</span>
+          <span class="leading-relaxed">Copy this secret now. It is hashed immediately and cannot be retrieved later.</span>
         </div>
 
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Secret Token</label>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Secret Token</label>
           <div class="flex items-center gap-2">
             <input
               type="text"
               readonly
               :value="generatedSecretKey"
-              class="flex-1 p-2.5 rounded-xl font-mono text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 select-all"
+              class="flex-1 h-10 px-3.5 rounded-xl font-mono text-xs bg-slate-50/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 select-all focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 text-slate-900 dark:text-white"
             />
             <BaseButton
               variant="primary"
@@ -414,13 +422,13 @@ onMounted(() => {
             </BaseButton>
           </div>
         </div>
-
-        <div class="flex justify-end pt-2">
-          <BaseButton variant="outline" size="sm" @click="showSecretModal = false">
-            I Have Saved This Key
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="primary" size="sm" @click="showSecretModal = false">
+          I Have Saved This Key
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

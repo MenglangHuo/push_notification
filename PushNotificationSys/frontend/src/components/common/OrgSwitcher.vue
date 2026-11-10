@@ -198,12 +198,15 @@ async function handleCreateOrg() {
       v-model="showCreateModal"
       title="Create Organization Workspace"
       subtitle="Provision a multi-tenant workspace for push notification apps"
-      :initial-width="480"
-      :initial-height="340"
+      :icon="Building2"
+      :initial-width="500"
       @close="showCreateModal = false"
     >
-      <form @submit.prevent="handleCreateOrg" class="space-y-4 p-2 text-left">
-        <div v-if="createError" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
+      <form id="create-org-form" @submit.prevent="handleCreateOrg" class="p-6 space-y-5 text-left">
+        <div
+          v-if="createError"
+          class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2"
+        >
           {{ createError }}
         </div>
 
@@ -213,6 +216,7 @@ async function handleCreateOrg() {
           placeholder="e.g. Acme Corporation"
           required
           :icon="Building2"
+          size="md"
           @input="autoSlug"
         />
 
@@ -222,17 +226,23 @@ async function handleCreateOrg() {
           placeholder="e.g. acme"
           required
           :icon="Sparkles"
+          size="md"
         />
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showCreateModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton type="submit" variant="primary" :loading="isCreating">
-            Create Workspace
-          </BaseButton>
-        </div>
       </form>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showCreateModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          type="submit"
+          form="create-org-form"
+          variant="primary"
+          :loading="isCreating"
+        >
+          Create Workspace
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

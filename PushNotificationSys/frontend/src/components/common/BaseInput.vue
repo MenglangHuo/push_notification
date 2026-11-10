@@ -46,27 +46,22 @@ function onInput(event: Event) {
       <label
         v-if="label || $slots.label"
         :for="id"
-        class="block"
-        :class="
-          labelClass ||
-          (size === 'lg'
-            ? 'text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300'
-            : 'text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300')
-        "
+        class="block text-xs font-semibold text-slate-700 dark:text-slate-300"
+        :class="labelClass"
       >
         <slot name="label">{{ label }}</slot>
-        <span v-if="required" class="text-rose-500 ml-0.5">*</span>
+        <span v-if="required" class="text-rose-500 font-bold ml-0.5">*</span>
       </label>
       <slot name="label-right" />
     </div>
 
     <!-- Input Wrapper -->
-    <div class="relative w-full">
+    <div class="relative w-full group">
       <!-- Leading Icon -->
       <component
         v-if="icon"
         :is="icon"
-        class="text-slate-400 absolute top-1/2 -translate-y-1/2 shrink-0 pointer-events-none transition-colors"
+        class="text-slate-400 group-focus-within:text-indigo-500 absolute top-1/2 -translate-y-1/2 shrink-0 pointer-events-none transition-colors"
         :class="size === 'lg' ? 'w-5 h-5 left-4' : 'w-4 h-4 left-3.5'"
       />
 
@@ -82,14 +77,14 @@ function onInput(event: Event) {
         :enterkeyhint="enterkeyhint"
         :list="list"
         @input="onInput"
-        class="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl border transition-all focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="w-full bg-slate-50/70 dark:bg-slate-950/70 hover:bg-white dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl border transition-all focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
         :class="[
           icon
             ? size === 'lg'
               ? 'pl-12'
               : size === 'md'
                 ? 'pl-10'
-                : 'pl-9'
+                : 'pl-9.5'
             : size === 'lg'
               ? 'pl-4'
               : 'pl-3.5',
@@ -99,14 +94,14 @@ function onInput(event: Event) {
               : 'h-12 sm:h-13 text-sm sm:text-base pr-4'
             : size === 'md'
               ? $slots.suffix
-                ? 'h-10 text-sm pr-10'
-                : 'h-10 text-sm pr-4'
+                ? 'h-10 text-xs sm:text-sm pr-10'
+                : 'h-10 text-xs sm:text-sm pr-4'
               : $slots.suffix
-                ? 'h-8 text-xs pr-8'
-                : 'h-8 text-xs pr-3',
+                ? 'h-9 text-xs pr-8'
+                : 'h-9 text-xs pr-3.5',
           error
-            ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20'
-            : 'border-slate-200 dark:border-slate-800',
+            ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/15'
+            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700',
         ]"
       />
 

@@ -94,11 +94,14 @@ const clampedProgress = computed(() => {
       <!-- Center Card Content -->
       <div class="relative z-10 flex flex-col items-center text-center px-6 max-w-md w-full">
         <!-- Beacon Radar Pulse Container -->
-        <div class="relative flex items-center justify-center mb-5">
-          <!-- Concentric Expanding Radar Waves -->
-          <div class="beacon-wave beacon-wave-1"></div>
-          <div class="beacon-wave beacon-wave-2"></div>
-          <div class="beacon-wave beacon-wave-3"></div>
+        <div class="relative flex items-center justify-center mb-5 w-16 h-16 sm:w-20 sm:h-20">
+          <!-- 6 Concentric Round Borders Wrapping Logo -->
+          <div class="splash-round-border splash-round-border-1"></div>
+          <div class="splash-round-border splash-round-border-2"></div>
+          <div class="splash-round-border splash-round-border-3"></div>
+          <div class="splash-round-border splash-round-border-4"></div>
+          <div class="splash-round-border splash-round-border-5"></div>
+          <div class="splash-round-border splash-round-border-6"></div>
 
           <!-- Central Glowing Squircle -->
           <div
@@ -106,79 +109,6 @@ const clampedProgress = computed(() => {
           >
             <BellRing class="w-8 h-8 sm:w-10 sm:h-10 text-white stroke-[2.2] animate-bounce-subtle" />
           </div>
-        </div>
-
-        <!-- System Pill Badge -->
-        <div
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-200/80 dark:border-indigo-500/30 mb-2 shadow-2xs"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Push Delivery Gateway</span>
-        </div>
-
-        <!-- Title -->
-        <slot name="title">
-          <h1
-            class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white"
-          >
-            {{ displayTitle }}
-          </h1>
-        </slot>
-
-        <!-- Subtitle -->
-        <slot name="subtitle">
-          <p
-            v-if="displaySubtitle"
-            class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-1"
-          >
-            {{ displaySubtitle }}
-          </p>
-        </slot>
-
-        <!-- Progress Container -->
-        <div v-if="showProgress" class="w-full flex flex-col items-center mt-6">
-          <slot
-            name="progress"
-            :progress="currentProgress"
-            :is-determinate="isDeterminate"
-            :clamped="clampedProgress"
-          >
-            <div
-              class="w-52 sm:w-64 h-1.5 bg-slate-200/80 dark:bg-slate-800/80 rounded-full overflow-hidden relative shadow-inner"
-              role="progressbar"
-              :aria-valuenow="isDeterminate ? clampedProgress : undefined"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <!-- Determinate Fill -->
-              <div
-                v-if="isDeterminate"
-                class="h-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-400 rounded-full transition-all duration-300 ease-out"
-                :style="{ width: `${clampedProgress}%` }"
-              ></div>
-
-              <!-- Indeterminate Shimmer Fill -->
-              <div v-else class="h-full w-full relative overflow-hidden">
-                <div
-                  class="splash-shimmer-bar absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-400 rounded-full shadow-[0_0_12px_rgba(99,102,241,0.6)]"
-                ></div>
-              </div>
-            </div>
-          </slot>
-
-          <!-- Status Message Indicator -->
-          <slot name="message" :message="displayMessage">
-            <div
-              v-if="displayMessage"
-              class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-3 flex items-center justify-center gap-1.5"
-            >
-              <Loader2 class="w-3.5 h-3.5 animate-spin text-indigo-500 dark:text-indigo-400 shrink-0" />
-              <span class="truncate max-w-[260px]">{{ displayMessage }}</span>
-              <span v-if="isDeterminate" class="font-mono text-[11px] text-slate-400">
-                ({{ Math.round(clampedProgress) }}%)
-              </span>
-            </div>
-          </slot>
         </div>
 
         <!-- Optional Footer / Actions Slot -->
@@ -189,43 +119,68 @@ const clampedProgress = computed(() => {
 </template>
 
 <style scoped>
-/* Expanding Beacon Radar Waves */
-.beacon-wave {
+/* 6 Active Concentric Round Borders Wrapping the Logo */
+.splash-round-border {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  margin-top: -36px;
+  margin-left: -36px;
   border-radius: 9999px;
-  border: 1.5px solid rgba(99, 102, 241, 0.45);
   pointer-events: none;
-  animation: radar-wave-pulse 2.6s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  box-sizing: border-box;
+  transform-origin: center center;
+  border: 1.5px solid rgba(99, 102, 241, 0.45);
+  animation: splash-radar-ripple 2.4s cubic-bezier(0.15, 0.3, 0.4, 1) infinite;
+  animation-fill-mode: both;
 }
 
-.dark .beacon-wave {
-  border-color: rgba(99, 102, 241, 0.6);
-}
-
-.beacon-wave-1 {
+.splash-round-border-1 {
   animation-delay: 0s;
 }
-
-.beacon-wave-2 {
-  animation-delay: 0.85s;
+.splash-round-border-2 {
+  animation-delay: -0.4s;
+}
+.splash-round-border-3 {
+  animation-delay: -0.8s;
+}
+.splash-round-border-4 {
+  animation-delay: -1.2s;
+}
+.splash-round-border-5 {
+  animation-delay: -1.6s;
+}
+.splash-round-border-6 {
+  animation-delay: -2.0s;
 }
 
-.beacon-wave-3 {
-  animation-delay: 1.7s;
+:global(.dark) .splash-round-border,
+.dark .splash-round-border {
+  border-color: rgba(129, 140, 248, 0.6);
 }
 
-@keyframes radar-wave-pulse {
+@keyframes splash-radar-ripple {
   0% {
-    width: 64px;
-    height: 64px;
-    opacity: 0.95;
     transform: scale(0.9);
+    opacity: 0.95;
+    border-width: 2px;
+    border-color: rgba(99, 102, 241, 0.55);
+  }
+  35% {
+    opacity: 0.7;
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+  70% {
+    opacity: 0.3;
+    border-color: rgba(99, 102, 241, 0.2);
   }
   100% {
-    width: 200px;
-    height: 200px;
+    transform: scale(4.8);
     opacity: 0;
-    transform: scale(1.6);
+    border-width: 1px;
+    border-color: rgba(99, 102, 241, 0);
   }
 }
 

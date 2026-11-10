@@ -81,7 +81,7 @@ export const useSplashStore = defineStore('splash', () => {
   /**
    * Finish the initial application boot splash sequence smoothly
    */
-  function finishInitialLoad(delayMs = 150) {
+  function finishInitialLoad(delayMs = 450) {
     hide(delayMs)
   }
 

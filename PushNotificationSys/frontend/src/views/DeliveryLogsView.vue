@@ -378,45 +378,45 @@ onMounted(() => {
       v-model="errorModalVisible"
       title="Downstream Provider Trace Details"
       subtitle="Raw gateway response payload and diagnostic trace information"
-      :initial-width="600"
-      :initial-height="420"
+      :icon="Activity"
+      :initial-width="640"
       @close="errorModalVisible = false"
     >
-      <div v-if="activeErrorLog" class="p-3 space-y-4 text-left">
+      <div v-if="activeErrorLog" class="p-6 space-y-5 text-left">
         <div class="grid grid-cols-2 gap-3">
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Gateway Status</span>
-            <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
+          <div class="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/60 border border-slate-200/90 dark:border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block tracking-wider">Gateway Status</span>
+            <span class="text-sm font-mono font-bold text-slate-900 dark:text-white mt-0.5 block">
               {{ activeErrorLog.statusCode || activeErrorLog.status || 'None' }}
             </span>
           </div>
 
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Provider Gateway</span>
-            <span class="text-xs font-mono text-slate-700 dark:text-slate-300 truncate block">
+          <div class="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/60 border border-slate-200/90 dark:border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block tracking-wider">Provider Gateway</span>
+            <span class="text-sm font-mono font-bold text-slate-700 dark:text-slate-300 truncate block mt-0.5">
               {{ activeErrorLog.provider || 'N/A' }}
             </span>
           </div>
         </div>
 
-        <div v-if="activeErrorLog.errorMessage" class="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
+        <div v-if="activeErrorLog.errorMessage" class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
           <span class="font-bold block mb-1">Downstream Error Message:</span>
-          <span>{{ activeErrorLog.errorMessage }}</span>
+          <span class="leading-relaxed">{{ activeErrorLog.errorMessage }}</span>
         </div>
 
-        <div class="space-y-1">
-          <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Device ID</label>
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 font-mono text-[11px] break-all select-all text-slate-800 dark:text-slate-200">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Target Device ID</label>
+          <div class="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200/90 dark:border-slate-800 font-mono text-xs break-all select-all text-slate-800 dark:text-slate-200">
             {{ activeErrorLog.deviceId || 'Broadcast / N/A' }}
           </div>
         </div>
-
-        <div class="flex justify-end pt-2">
-          <BaseButton variant="outline" size="sm" @click="errorModalVisible = false">
-            Close
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="outline" size="sm" @click="errorModalVisible = false">
+          Close
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

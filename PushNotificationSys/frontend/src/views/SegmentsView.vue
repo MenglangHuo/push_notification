@@ -291,26 +291,27 @@ onMounted(() => {
       v-model="showDeleteModal"
       title="Delete Audience Segment"
       subtitle="Remove dynamic cohort from application"
-      :initial-width="440"
-      :initial-height="240"
+      :icon="Trash2"
+      icon-class="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20"
+      :initial-width="480"
       @close="showDeleteModal = false"
     >
-      <div class="p-2 space-y-4 text-left">
-        <p class="text-xs text-slate-600 dark:text-slate-300">
+      <div class="p-6 space-y-4 text-left">
+        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
           Are you sure you want to delete segment
-          <strong class="text-slate-900 dark:text-white">{{ segmentToDelete?.name }}</strong>?
+          <strong class="text-slate-900 dark:text-white font-semibold">{{ segmentToDelete?.name }}</strong>?
           Scheduled campaigns targeting this segment will not be dispatched.
         </p>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showDeleteModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
-            Delete Segment
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showDeleteModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
+          Delete Segment
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

@@ -192,12 +192,15 @@ onMounted(() => {
       v-model="showCreateModal"
       title="Create Custom RBAC Role"
       subtitle="Assemble granular permissions for team member delegation"
-      :initial-width="640"
-      :initial-height="520"
+      :icon="Shield"
+      :initial-width="660"
       @close="showCreateModal = false"
     >
-      <form @submit.prevent="handleCreateRole" class="space-y-4 p-2 text-left">
-        <div v-if="createError" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
+      <form id="create-role-form" @submit.prevent="handleCreateRole" class="p-6 space-y-5 text-left">
+        <div
+          v-if="createError"
+          class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2"
+        >
           {{ createError }}
         </div>
 
@@ -207,58 +210,96 @@ onMounted(() => {
           placeholder="e.g. Campaign Dispatcher or Security Auditor"
           required
           :icon="Shield"
+          size="md"
         />
 
-        <div class="space-y-1">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Description
           </label>
           <input
             v-model="newRoleDescription"
             type="text"
-            placeholder="Scope of this role..."
-            class="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:border-indigo-500"
+            placeholder="Scope and responsibilities of this role..."
+            class="w-full h-10 bg-slate-50/70 dark:bg-slate-950/70 hover:bg-white dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-2xs transition-all"
           />
         </div>
 
         <div class="space-y-2">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-            Select Permissions
-          </label>
-          <div class="max-h-56 overflow-y-auto p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div v-for="(perms, resource) in permissionsByResource" :key="resource" class="space-y-1.5">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-500 block">
-                {{ resource }}
-              </span>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Select Permissions
+            </label>
+            <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {{ selectedPermissions.size }} selected
+            </span>
+          </div>
+
+          <div
+            class="max-h-64 overflow-y-auto p-4 rounded-2xl bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200/90 dark:border-slate-800 space-y-4 custom-modal-scroll"
+          >
+            <div
+              v-for="(perms, resource) in permissionsByResource"
+              :key="resource"
+              class="space-y-2"
+            >
+              <div class="flex items-center gap-2">
+                <span
+                  class="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/40"
+                >
+                  {{ resource }}
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <label
                   v-for="p in perms"
                   :key="p.code"
-                  class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-900"
+                  class="flex items-start gap-2.5 text-xs cursor-pointer p-2.5 rounded-xl border transition-all duration-150 select-none"
+                  :class="[
+                    selectedPermissions.has(p.code)
+                      ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800/70 shadow-2xs'
+                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700',
+                  ]"
                 >
                   <input
                     type="checkbox"
                     :checked="selectedPermissions.has(p.code)"
                     @change="togglePermission(p.code)"
-                    class="rounded text-indigo-600 focus:ring-indigo-500"
+                    class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer"
                   />
-                  <span class="font-mono text-[11px]">{{ p.code }}</span>
-                  <span class="text-[10px] text-slate-400"> - {{ p.description }}</span>
+                  <div class="min-w-0 flex-1">
+                    <div
+                      class="font-mono text-[11px] font-semibold text-slate-900 dark:text-slate-100"
+                    >
+                      {{ p.code }}
+                    </div>
+                    <div
+                      class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5"
+                    >
+                      {{ p.description }}
+                    </div>
+                  </div>
                 </label>
               </div>
             </div>
           </div>
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showCreateModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton type="submit" variant="primary" :loading="isCreating">
-            Save Role
-          </BaseButton>
-        </div>
       </form>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showCreateModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          type="submit"
+          form="create-role-form"
+          variant="primary"
+          :loading="isCreating"
+        >
+          Save Role
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

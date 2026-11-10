@@ -372,16 +372,17 @@ onMounted(() => {
       v-model="showCreateModal"
       title="Register New Application"
       subtitle="Create an application workspace to issue API keys and route push alerts"
-      :initial-width="500"
-      :initial-height="380"
+      :icon="Smartphone"
+      :initial-width="520"
       @close="showCreateModal = false"
     >
-      <form @submit.prevent="handleCreateApp" class="space-y-4 p-2 text-left">
+      <form id="create-app-form" @submit.prevent="handleCreateApp" class="p-6 space-y-5 text-left">
         <div
           v-if="createError"
-          class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs"
+          class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2"
         >
-          {{ createError }}
+          <AlertCircle class="w-4 h-4 shrink-0 text-rose-500" />
+          <span>{{ createError }}</span>
         </div>
 
         <BaseInput
@@ -390,29 +391,35 @@ onMounted(() => {
           placeholder="e.g. Bronx Customer Mobile App"
           required
           :icon="Smartphone"
+          size="md"
         />
 
         <div class="space-y-1.5">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Description
           </label>
           <textarea
             v-model="newAppDescription"
             rows="3"
-            placeholder="Brief description of the app platform..."
-            class="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white placeholder-slate-400 rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-xs focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            placeholder="Brief description of the app platform, audience, or environment..."
+            class="w-full bg-slate-50/70 dark:bg-slate-950/70 hover:bg-white dark:hover:bg-slate-900 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl border border-slate-200 dark:border-slate-800 p-3 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 shadow-2xs transition-all"
           ></textarea>
         </div>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showCreateModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton type="submit" variant="primary" :loading="isCreating">
-            Register Application
-          </BaseButton>
-        </div>
       </form>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showCreateModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          type="submit"
+          form="create-app-form"
+          variant="primary"
+          :loading="isCreating"
+        >
+          Register Application
+        </BaseButton>
+      </template>
     </ModernModal>
 
     <!-- Delete Confirmation Modal -->
@@ -420,26 +427,27 @@ onMounted(() => {
       v-model="showDeleteModal"
       title="Delete Application"
       subtitle="This action cannot be undone and will revoke all keys"
-      :initial-width="440"
-      :initial-height="240"
+      :icon="Trash2"
+      icon-class="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20"
+      :initial-width="480"
       @close="showDeleteModal = false"
     >
-      <div class="p-2 space-y-4 text-left">
-        <p class="text-xs text-slate-600 dark:text-slate-300">
+      <div class="p-6 space-y-4 text-left">
+        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
           Are you sure you want to permanently delete
-          <strong class="text-slate-900 dark:text-white font-bold">{{ appToDelete?.name }}</strong>?
-          All associated device tokens, notification records, and provider credentials will be purged.
+          <strong class="text-slate-900 dark:text-white font-semibold">{{ appToDelete?.name }}</strong>?
+          All associated device tokens, notification records, and provider credentials will be permanently purged.
         </p>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showDeleteModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
-            Permanently Delete
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showDeleteModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
+          Permanently Delete
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

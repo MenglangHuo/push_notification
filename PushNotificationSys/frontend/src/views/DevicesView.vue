@@ -446,28 +446,29 @@ onMounted(() => {
       v-model="showDeleteModal"
       title="Deregister Device"
       subtitle="Remove device push token from recipient pool"
-      :initial-width="440"
-      :initial-height="240"
+      :icon="Trash2"
+      icon-class="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20"
+      :initial-width="480"
       @close="showDeleteModal = false"
     >
-      <div class="p-2 space-y-4 text-left">
-        <p class="text-xs text-slate-600 dark:text-slate-300">
+      <div class="p-6 space-y-4 text-left">
+        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
           Are you sure you want to remove token
-          <span class="font-mono font-bold text-slate-900 dark:text-white truncate block max-w-sm">
+          <span class="font-mono font-semibold text-slate-900 dark:text-white truncate block max-w-sm mt-1 p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
             {{ deviceToDelete?.pushTokenMasked }}
           </span>
           This device will no longer receive broadcast or targeted push notifications.
         </p>
-
-        <div class="flex items-center justify-end gap-2 pt-2">
-          <BaseButton variant="ghost" @click="showDeleteModal = false">
-            Cancel
-          </BaseButton>
-          <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
-            Deregister Token
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showDeleteModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton variant="danger" :loading="isDeleting" @click="confirmDelete">
+          Deregister Token
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

@@ -27,16 +27,16 @@ const emit = defineEmits<{
 const variantClasses = computed(() => {
   switch (props.variant) {
     case 'secondary':
-      return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 shadow-2xs'
+      return 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/90 dark:border-slate-750 shadow-2xs font-medium'
     case 'outline':
-      return 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs'
+      return 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-2xs font-medium'
     case 'ghost':
-      return 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent'
+      return 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80 border border-transparent font-medium'
     case 'danger':
-      return 'bg-rose-600 hover:bg-rose-500 text-white shadow-sm shadow-rose-600/20 border border-rose-500/30'
+      return 'bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white shadow-sm shadow-rose-600/25 hover:shadow-md hover:shadow-rose-600/30 border border-rose-500/20 font-semibold'
     case 'primary':
     default:
-      return 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 border border-indigo-500/30'
+      return 'bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white shadow-sm shadow-indigo-600/25 hover:shadow-md hover:shadow-indigo-600/30 border border-indigo-500/20 font-semibold'
   }
 })
 
@@ -45,12 +45,12 @@ const sizeClasses = computed(() => {
     case 'xs':
       return 'px-2.5 py-1 text-[11px] rounded-lg gap-1.5'
     case 'md':
-      return 'px-4 py-2.5 text-sm rounded-xl gap-2 font-semibold'
+      return 'px-4.5 py-2.5 text-xs sm:text-sm rounded-xl gap-2 font-semibold'
     case 'lg':
-      return 'px-5 py-3 text-base rounded-2xl gap-2.5 font-bold'
+      return 'px-5.5 py-3 text-sm sm:text-base rounded-2xl gap-2.5 font-bold'
     case 'sm':
     default:
-      return 'px-3 py-1.5 text-xs rounded-xl gap-2 font-medium'
+      return 'px-3.5 py-2 text-xs rounded-xl gap-2 font-semibold'
   }
 })
 </script>

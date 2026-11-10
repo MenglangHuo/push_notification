@@ -410,79 +410,80 @@ onMounted(() => {
       v-model="showDetailModal"
       title="Notification Audit & Delivery Trace"
       subtitle="Detailed payload, provider feedback, and recipient delivery receipts"
-      :initial-width="720"
-      :initial-height="540"
+      :icon="BellRing"
+      :allow-maximize="true"
+      :initial-width="760"
       @close="showDetailModal = false"
     >
-      <div v-if="activeNotification" class="p-3 space-y-4 text-left">
+      <div v-if="activeNotification" class="p-6 space-y-5 text-left">
         <!-- Overview Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Total Dispatched</span>
-            <span class="text-sm font-mono font-bold text-slate-900 dark:text-white">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-950/60 border border-slate-200/90 dark:border-slate-800">
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block tracking-wider">Total Dispatched</span>
+            <span class="text-base font-mono font-bold text-slate-900 dark:text-white mt-1 block">
               {{ (activeNotification.sentCount || activeNotification.deliveredCount || 0).toLocaleString() }}
             </span>
           </div>
-          <div class="p-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40">
-            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold block">Delivered</span>
-            <span class="text-sm font-mono font-bold text-emerald-700 dark:text-emerald-300">
+          <div class="p-3.5 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/40">
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold block tracking-wider">Delivered</span>
+            <span class="text-base font-mono font-bold text-emerald-700 dark:text-emerald-300 mt-1 block">
               {{ (activeNotification.deliveredCount || 0).toLocaleString() }}
             </span>
           </div>
-          <div class="p-3 rounded-xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40">
-            <span class="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-semibold block">Opens</span>
-            <span class="text-sm font-mono font-bold text-amber-700 dark:text-amber-300">
+          <div class="p-3.5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/70 dark:border-amber-800/40">
+            <span class="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-semibold block tracking-wider">Opens</span>
+            <span class="text-base font-mono font-bold text-amber-700 dark:text-amber-300 mt-1 block">
               {{ (activeNotification.openedCount || 0).toLocaleString() }}
             </span>
           </div>
-          <div class="p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-800/40">
-            <span class="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-semibold block">Failed</span>
-            <span class="text-sm font-mono font-bold text-rose-700 dark:text-rose-300">
+          <div class="p-3.5 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/70 dark:border-rose-800/40">
+            <span class="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-semibold block tracking-wider">Failed</span>
+            <span class="text-base font-mono font-bold text-rose-700 dark:text-rose-300 mt-1 block">
               {{ (activeNotification.failedCount || 0).toLocaleString() }}
             </span>
           </div>
         </div>
 
         <!-- Payload Preview -->
-        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2">
+        <div class="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200/90 dark:border-slate-800 space-y-2.5">
           <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
             Dispatched Content
           </h4>
-          <div class="text-xs">
-            <span class="text-slate-400">Title:</span>
-            <span class="ml-2 font-bold text-slate-800 dark:text-slate-200">{{ activeNotification.title }}</span>
+          <div class="text-xs sm:text-sm">
+            <span class="text-slate-400 font-medium">Title:</span>
+            <span class="ml-2 font-semibold text-slate-900 dark:text-white">{{ activeNotification.title }}</span>
           </div>
-          <div class="text-xs">
-            <span class="text-slate-400">Body:</span>
-            <span class="ml-2 text-slate-700 dark:text-slate-300">{{ activeNotification.body }}</span>
+          <div class="text-xs sm:text-sm">
+            <span class="text-slate-400 font-medium">Body:</span>
+            <span class="ml-2 text-slate-700 dark:text-slate-300 leading-relaxed">{{ activeNotification.body }}</span>
           </div>
         </div>
 
         <!-- Delivery Log Receipts -->
-        <div class="space-y-2">
+        <div class="space-y-2.5">
           <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-            <Activity class="w-3.5 h-3.5 text-indigo-500" />
+            <Activity class="w-4 h-4 text-indigo-500" />
             <span>Downstream Delivery Receipts</span>
           </h4>
 
-          <div v-if="isLoadingLogs" class="text-center py-4 text-xs text-slate-400">
+          <div v-if="isLoadingLogs" class="text-center py-6 text-xs text-slate-400">
             Loading receipt logs...
           </div>
-          <div v-else-if="deliveryLogs.length === 0" class="text-center py-4 text-xs text-slate-400">
+          <div v-else-if="deliveryLogs.length === 0" class="text-center py-6 text-xs text-slate-400">
             No individual device receipts recorded for this batch.
           </div>
-          <div v-else class="max-h-48 overflow-y-auto space-y-1 rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+          <div v-else class="max-h-56 overflow-y-auto rounded-2xl border border-slate-200/90 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 custom-modal-scroll">
             <div
               v-for="log in deliveryLogs"
               :key="log.id"
-              class="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40"
+              class="p-3 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
             >
               <div class="truncate max-w-sm">
-                <span class="font-mono text-[11px] text-slate-600 dark:text-slate-300">{{ log.deviceId || log.notificationId }}</span>
-                <span class="ml-2 text-[10px] text-slate-400">{{ log.provider }}</span>
+                <span class="font-mono text-xs text-slate-700 dark:text-slate-300">{{ log.deviceId || log.notificationId }}</span>
+                <span class="ml-2 text-[10px] px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">{{ log.provider }}</span>
               </div>
               <span
-                class="px-2 py-0.2 rounded-full text-[10px] font-bold"
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                 :class="[
                   log.status === 'SUCCESS'
                     ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600'
@@ -494,13 +495,13 @@ onMounted(() => {
             </div>
           </div>
         </div>
-
-        <div class="flex justify-end pt-2">
-          <BaseButton variant="outline" size="sm" @click="showDetailModal = false">
-            Close
-          </BaseButton>
-        </div>
       </div>
+
+      <template #footer>
+        <BaseButton variant="outline" size="sm" @click="showDetailModal = false">
+          Close
+        </BaseButton>
+      </template>
     </ModernModal>
   </div>
 </template>

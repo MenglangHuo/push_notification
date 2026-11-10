@@ -90,17 +90,17 @@ onUnmounted(() => {
       type="button"
       @click="toggleDropdown"
       :disabled="disabled"
-      class="flex items-center justify-between gap-1.5 border font-medium transition-all shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+      class="flex items-center justify-between gap-2 border font-medium transition-all shadow-2xs focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       :class="[
         block ? 'w-full' : '',
         size === 'xs'
           ? 'h-8 px-2.5 text-xs rounded-lg'
           : size === 'md'
-            ? 'h-10 px-4 text-sm rounded-xl'
+            ? 'h-10 px-3.5 text-xs sm:text-sm rounded-xl'
             : 'h-9 px-3.5 text-xs sm:text-[13px] rounded-xl',
         isOpen
-          ? 'ring-2 ring-blue-500/20 border-blue-500 text-blue-600 dark:text-blue-400'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700',
+          ? 'ring-4 ring-indigo-500/10 border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900'
+          : 'bg-slate-50/70 dark:bg-slate-950/70 hover:bg-white dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700',
         buttonClass,
       ]"
     >
@@ -116,7 +116,7 @@ onUnmounted(() => {
         <component
           v-if="selectedOption?.icon"
           :is="selectedOption.icon"
-          class="w-3.5 h-3.5 shrink-0 text-slate-500 dark:text-slate-400"
+          class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-slate-600 dark:text-slate-400"
         />
 
         <span class="truncate font-medium">
@@ -125,8 +125,8 @@ onUnmounted(() => {
       </div>
 
       <ChevronDown
-        class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ml-1"
-        :class="{ 'rotate-180 text-blue-500': isOpen }"
+        class="w-4 h-4 text-slate-400 transition-transform duration-200 shrink-0 ml-1"
+        :class="{ 'rotate-180 text-indigo-500': isOpen }"
       />
     </button>
 
@@ -149,7 +149,7 @@ onUnmounted(() => {
     >
       <div
         v-if="isOpen"
-        class="absolute z-50 max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1 focus:outline-none"
+        class="absolute z-50 max-h-64 overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xl ring-1 ring-black/5 dark:ring-white/10 p-1.5 focus:outline-none custom-modal-scroll"
         :class="[
           direction === 'up' ? 'bottom-full mb-1.5' : 'mt-1.5',
           menuClass || 'min-w-[120px] w-full',
@@ -159,11 +159,11 @@ onUnmounted(() => {
           v-for="opt in options"
           :key="opt.value"
           @click="selectOption(opt)"
-          class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors font-medium select-none"
+          class="flex items-center justify-between px-3 py-2 rounded-xl text-xs sm:text-[13px] cursor-pointer transition-colors font-medium select-none"
           :class="[
             opt.value === modelValue
-              ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-semibold'
-              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/70',
+              ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-semibold'
+              : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80',
           ]"
         >
           <div class="flex items-center gap-2 truncate">
@@ -172,13 +172,13 @@ onUnmounted(() => {
               class="w-2 h-2 rounded-full shrink-0"
               :class="opt.dotColor"
             ></span>
-            <component v-if="opt.icon" :is="opt.icon" class="w-3.5 h-3.5 shrink-0 text-slate-400" />
+            <component v-if="opt.icon" :is="opt.icon" class="w-4 h-4 shrink-0 text-slate-400" />
             <span class="truncate">{{ opt.label }}</span>
           </div>
 
           <Check
             v-if="opt.value === modelValue"
-            class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-2"
+            class="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 ml-2"
           />
         </div>
       </div>
