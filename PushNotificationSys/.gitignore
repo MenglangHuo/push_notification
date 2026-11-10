@@ -1,0 +1,87 @@
+# ==========================================
+# Dependencies & Package Managers
+# ==========================================
+node_modules/
+frontend/node_modules/
+.pnp
+.pnp.js
+
+# ==========================================
+# Build Outputs & Compiled Binaries
+# ==========================================
+target/
+backend/target/
+frontend/dist/
+frontend/dist-ssr/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ==========================================
+# Logs & Process Artifacts
+# ==========================================
+*.log
+/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# IDEs & Editors
+# ==========================================
+.idea/
+backend/.idea/
+.vscode/
+frontend/.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# AI Agent Caches & Local Sessions
+# ==========================================
+.antigravity/
+.claude/
+.cursor/
+scratch/
+*.local.md
+AGENTS.md
+AG_RULES.md
+BACKEND_ARCHITECTURE.md
+FRONTEND_ARCHITECTURE.md
+MEMORY.md
+architecture_plan.md
+frontend_v1/
+**/frontend_v1/
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.p8
+*.key
+*.p12
+
+# ==========================================
+# Test Coverage & Temp Dirs
+# ==========================================
+coverage/
+.nyc_output/
+*.lcov
+tmp/
+temp/

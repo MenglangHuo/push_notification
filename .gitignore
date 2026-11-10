@@ -57,10 +57,12 @@ Thumbs.db
 .cursor/
 scratch/
 *.local.md
+AGENTS.md
 AG_RULES.md
 BACKEND_ARCHITECTURE.md
 FRONTEND_ARCHITECTURE.md
 MEMORY.md
+architecture_plan.md
 
 # ==========================================
 # Environment Variables & Secrets
@@ -81,12 +83,9 @@ coverage/
 *.lcov
 tmp/
 temp/
-docs/
-.antigravity/
-.github/
-.idea/
 
 # ==========================================
-# Frontend
+# Frontend Archived / Inactive Versions
 # ==========================================
-/frontend_v1/*
+frontend_v1/
+**/frontend_v1/

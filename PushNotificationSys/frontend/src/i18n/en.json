@@ -1,0 +1,59 @@
+{
+  "common": {
+    "dashboard": "Dashboard",
+    "apps": "Apps",
+    "apiKeys": "API Keys",
+    "members": "Members",
+    "roles": "Roles",
+    "notifications": "Notifications",
+    "segments": "Segments",
+    "devices": "Devices",
+    "logs": "Logs",
+    "auditLogs": "Audit Logs",
+    "settings": "Settings",
+    "logout": "Sign Out",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "create": "Create",
+    "invite": "Invite",
+    "actions": "Actions",
+    "status": "Status",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "search": "Search...",
+    "loading": "Loading...",
+    "confirm": "Confirm"
+  },
+  "auth": {
+    "signInTitle": "Welcome Back",
+    "signInSubtitle": "Sign in to manage notifications, campaigns, and audience segments",
+    "emailPlaceholder": "name@company.com",
+    "password": "Password",
+    "signInButton": "Sign In",
+    "mfaTitle": "Two-Factor Authentication",
+    "mfaSubtitle": "Enter the 6-digit verification code from your authenticator app",
+    "mfaButton": "Verify Code",
+    "acceptInviteTitle": "Accept Invitation",
+    "acceptInviteSubtitle": "Set your name and password to join your organization"
+  },
+  "members": {
+    "title": "Organization Members",
+    "subtitle": "Manage member access, permissions, and app scopes",
+    "inviteButton": "Invite Member",
+    "inviteModalTitle": "Invite Team Member",
+    "selectRole": "Select Role",
+    "scopeToApp": "Scope to Specific App (Optional)",
+    "orgWideScope": "Organization-Wide (All Apps)",
+    "removeConfirm": "Are you sure you want to remove this member?"
+  },
+  "roles": {
+    "title": "Roles & Permissions",
+    "subtitle": "Configure system presets and custom permission bundles",
+    "createRoleButton": "Create Custom Role",
+    "systemRoleBadge": "System Preset",
+    "customRoleBadge": "Custom Role",
+    "matrixTitle": "Permission Catalog"
+  }
+}

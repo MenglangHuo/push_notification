@@ -1,0 +1,87 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: push-notification-platform
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:54327}/${DB_NAME:push_platform}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        show_sql: false
+        default_batch_fetch_size: 30
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 3000ms
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: push-platform-consumers
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.onesignal.platform.*"
+
+app:
+  jwt:
+    # 256-bit secret for signing HS256 tokens (can be overridden via env var)
+    secret: ${JWT_SECRET:4z7x9w2v8y5k1m3p6r9t0q4s7u2w5x8z1a3c5e7g9i1k3m5o7q9s1u3w5y7z9a1b}
+    access-token-expiration-seconds: 900 # 15 minutes
+    refresh-token-expiration-seconds: 604800 # 7 days
+    cookie-name: push_refresh_token
+    cookie-secure: false # set true in prod with HTTPS
+  crypto:
+    # Master key for AES-GCM credential vault (32 bytes base64)
+    master-key: ${CRYPTO_MASTER_KEY:k4P8q3Z1y7W2v9T0x5R8u1O3m6L9j2H5g7E0b3D6a8=}
+  cors:
+    allowed-origin-patterns: "*"
+
+management:
+  endpoints:
+    enabled-by-default: true
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: when_authorized
+    prometheus:
+      enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.onesignal.platform: DEBUG
+    org.springframework.security: INFO

@@ -1,0 +1,45 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:54327}/${DB_NAME:push_platform}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres_password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: localhost
+      port: 6380
+      timeout: 3000ms
+  kafka:
+    bootstrap-servers: localhost:9092
+
+app:
+  jwt:
+    secret: 4z7x9w2v8y5k1m3p6r9t0q4s7u2w5x8z1a3c5e7g9i1k3m5o7q9s1u3w5y7z9a1b
+    access-token-expiration-seconds: 900
+    refresh-token-expiration-seconds: 604800
+    cookie-name: push_refresh_token
+    cookie-secure: false
+  crypto:
+    master-key: k4P8q3Z1y7W2v9T0x5R8u1O3m6L9j2H5g7E0b3D6a8=
+  cors:
+    allowed-origin-patterns: "*"
+
+management:
+  endpoints:
+    enabled-by-default: true
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: when_authorized
