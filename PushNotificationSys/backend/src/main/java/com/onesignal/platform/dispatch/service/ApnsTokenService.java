@@ -1,6 +1,6 @@
 package com.onesignal.platform.dispatch.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.openssl.PEMKeyPair;
@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class ApnsTokenService {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonMapper OBJECT_MAPPER = JsonMapper.builder().build();
     private static final long TOKEN_CACHE_DURATION_MS = 45 * 60 * 1000L; // 45 minutes
 
     static {

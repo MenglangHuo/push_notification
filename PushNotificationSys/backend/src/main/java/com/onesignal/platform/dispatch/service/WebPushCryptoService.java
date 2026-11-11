@@ -1,6 +1,6 @@
 package com.onesignal.platform.dispatch.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.ECNamedCurveTable;
@@ -30,7 +30,7 @@ import java.util.Map;
 public class WebPushCryptoService {
 
     private static final String CURVE_NAME = "prime256v1"; // secp256r1 / NIST P-256
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonMapper OBJECT_MAPPER = JsonMapper.builder().build();
     private final SecureRandom secureRandom = new SecureRandom();
 
     static {
