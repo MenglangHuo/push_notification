@@ -38,7 +38,7 @@ public class UserMfaService {
 
     private static final String MFA_SETUP_KEY_PREFIX = "auth:mfa:setup:";
     private static final Duration SETUP_TTL = Duration.ofMinutes(10);
-    private static final String APP_NAME = "PushPlatform";
+    private static final String APP_NAME = "Bronx Notify";
 
     @Transactional(readOnly = true)
     public AuthDto.MfaStatusResponse getMfaStatus(UUID userId) {
@@ -128,10 +128,7 @@ public class UserMfaService {
             mfa.setBackupCodesHash(hashedCodes);
         }
 
-        UserMfa savedMfa = userMfaRepository.save(mfa);
-        if (savedMfa != null) {
-            mfa = savedMfa;
-        }
+        mfa = userMfaRepository.save(mfa);
         redisTemplate.delete(redisKey);
 
         UUID defaultOrgId = user.getMemberships().isEmpty() ? null : user.getMemberships().get(0).getOrganization().getId();

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -9,9 +9,10 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
-  Clock,
+  LifeBuoy,
   Moon,
   ShieldCheck,
+  Smartphone,
   Sun,
 } from 'lucide-vue-next'
 
@@ -21,8 +22,11 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const toastStore = useToastStore()
 
+const authMode = ref<'totp' | 'backup'>('totp')
 const digits = ref<string[]>(['', '', '', '', '', ''])
 const inputRefs = ref<(HTMLInputElement | null)[]>([])
+const backupCode = ref('')
+const backupInputRef = ref<HTMLInputElement | null>(null)
 const isShaking = ref(false)
 
 const mfaTicket = computed(() => {
@@ -33,8 +37,16 @@ const mfaTicket = computed(() => {
   )
 })
 
+const isBackupCodeComplete = computed(() => {
+  const clean = backupCode.value.replace(/[^A-Z0-9]/g, '')
+  return clean.length === 8
+})
+
 const isComplete = computed(() => {
-  return digits.value.every((d) => d.length === 1 && /^\d$/.test(d))
+  if (authMode.value === 'totp') {
+    return digits.value.every((d) => d.length === 1 && /^\d$/.test(d))
+  }
+  return isBackupCodeComplete.value
 })
 
 const formattedCode = computed(() => digits.value.join(''))
@@ -44,6 +56,29 @@ onMounted(() => {
     inputRefs.value[0]?.focus()
   })
 })
+
+function toggleAuthMode() {
+  authMode.value = authMode.value === 'totp' ? 'backup' : 'totp'
+  authStore.error = null
+  nextTick(() => {
+    if (authMode.value === 'totp') {
+      inputRefs.value[0]?.focus()
+    } else {
+      backupInputRef.value?.focus()
+    }
+  })
+}
+
+function handleBackupCodeInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (val.length > 8) val = val.slice(0, 8)
+  if (val.length > 4) {
+    backupCode.value = `${val.slice(0, 4)}-${val.slice(4)}`
+  } else {
+    backupCode.value = val
+  }
+}
 
 function handleInput(index: number, event: Event) {
   const target = event.target as HTMLInputElement
@@ -106,10 +141,14 @@ function handlePasteDirect(text: string, startIndex: number) {
 async function handleVerify() {
   if (!isComplete.value) return
 
+  const codeToSend = authMode.value === 'totp'
+    ? formattedCode.value
+    : backupCode.value.trim()
+
   try {
     await authStore.verifyMfa({
       mfaTicket: mfaTicket.value,
-      totpCode: formattedCode.value,
+      totpCode: codeToSend,
     })
 
     toastStore.success('MFA Verified', 'Signed in successfully!')
@@ -119,9 +158,16 @@ async function handleVerify() {
     setTimeout(() => {
       isShaking.value = false
     }, 500)
-    toastStore.error('Verification Failed', authStore.error || 'Invalid TOTP code')
-    digits.value = ['', '', '', '', '', '']
-    inputRefs.value[0]?.focus()
+    toastStore.error(
+      'Verification Failed',
+      authStore.error || (authMode.value === 'totp' ? 'Invalid TOTP code' : 'Invalid or expired backup code')
+    )
+    if (authMode.value === 'totp') {
+      digits.value = ['', '', '', '', '', '']
+      inputRefs.value[0]?.focus()
+    } else {
+      backupInputRef.value?.select()
+    }
   }
 }
 
@@ -156,18 +202,23 @@ function returnToLogin() {
         <div
           class="inline-flex items-center justify-center w-16 h-16 rounded-2xl sm:rounded-3xl bg-gradient-to-tr from-indigo-600 via-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/25 ring-4 ring-indigo-500/10 mb-4"
         >
-          <ShieldCheck class="w-8 h-8 text-white stroke-[2.2]" />
+          <LifeBuoy v-if="authMode === 'backup'" class="w-8 h-8 text-white stroke-[2.2]" />
+          <ShieldCheck v-else class="w-8 h-8 text-white stroke-[2.2]" />
         </div>
 
         <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Two-Factor Authentication
+          {{ authMode === 'backup' ? 'Emergency Backup Recovery' : 'Two-Factor Authentication' }}
         </h1>
         <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5 font-medium">
-          Enter the 6-digit TOTP verification code from your authenticator app
+          {{
+            authMode === 'backup'
+              ? 'Enter one of your 8-character emergency backup recovery codes (e.g. 4379-NYMN)'
+              : 'Enter the 6-digit TOTP verification code from your authenticator app'
+          }}
         </p>
 
-        <!-- 6 Box Code Entry -->
-        <div class="flex items-center justify-center gap-2 sm:gap-3 my-8" @paste="handlePaste">
+        <!-- 6 Box Code Entry (TOTP Mode) -->
+        <div v-if="authMode === 'totp'" class="flex items-center justify-center gap-2 sm:gap-3 my-8" @paste="handlePaste">
           <input
             v-for="(digit, idx) in digits"
             :key="idx"
@@ -188,6 +239,28 @@ function returnToLogin() {
           />
         </div>
 
+        <!-- Single Backup Code Input (Backup Mode) -->
+        <div v-else class="my-8 text-left">
+          <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-2 text-center">
+            Backup Recovery Code
+          </label>
+          <div class="relative">
+            <input
+              ref="backupInputRef"
+              type="text"
+              v-model="backupCode"
+              @input="handleBackupCodeInput"
+              @keyup.enter="handleVerify"
+              placeholder="XXXX-XXXX"
+              maxlength="9"
+              class="w-full h-14 text-center tracking-[0.25em] text-xl font-mono font-bold rounded-2xl border bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border-slate-200 dark:border-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 uppercase shadow-inner"
+            />
+          </div>
+          <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-2 text-center">
+            Each backup code is single-use and will be deactivated once verified.
+          </p>
+        </div>
+
         <!-- Error Message -->
         <div
           v-if="authStore.error"
@@ -206,14 +279,32 @@ function returnToLogin() {
           :disabled="!isComplete"
           @click="handleVerify"
         >
-          <span>Verify & Access Dashboard</span>
+          <span>{{ authMode === 'backup' ? 'Verify Backup Code & Sign In' : 'Verify & Access Dashboard' }}</span>
           <ArrowRight class="w-4 h-4 ml-1.5" />
         </BaseButton>
+
+        <!-- Toggle Auth Mode (Backup vs TOTP) -->
+        <div class="pt-2 pb-1 border-t border-slate-100 dark:border-slate-800/80 mt-2">
+          <button
+            type="button"
+            @click="toggleAuthMode"
+            class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors inline-flex items-center gap-1.5 cursor-pointer py-1"
+          >
+            <template v-if="authMode === 'totp'">
+              <LifeBuoy class="w-3.5 h-3.5" />
+              <span>Don't have your phone? Use an emergency backup code</span>
+            </template>
+            <template v-else>
+              <Smartphone class="w-3.5 h-3.5" />
+              <span>Have your authenticator app? Enter 6-digit TOTP code</span>
+            </template>
+          </button>
+        </div>
 
         <button
           type="button"
           @click="returnToLogin"
-          class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer pt-2"
+          class="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer pt-3"
         >
           <ArrowLeft class="w-3.5 h-3.5" />
           <span>Back to Sign In</span>
