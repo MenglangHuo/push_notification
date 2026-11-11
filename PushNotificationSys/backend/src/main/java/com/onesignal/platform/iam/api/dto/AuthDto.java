@@ -53,7 +53,36 @@ public class AuthDto {
         private String fullName;
         private String avatarUrl;
         private boolean superAdmin;
+        private boolean mfaEnabled;
         private List<OrgMembershipSummary> organizations;
+    }
+
+    @Data
+    @Builder
+    public static class MfaSetupResponse {
+        private String secretKey;
+        private String qrCodeDataUrl;
+        private String otpauthUri;
+        private List<String> backupCodes;
+    }
+
+    @Data
+    public static class MfaConfirmRequest {
+        @NotBlank(message = "TOTP code is required")
+        private String totpCode;
+    }
+
+    @Data
+    public static class MfaDisableRequest {
+        @NotBlank(message = "Password is required to disable MFA")
+        private String password;
+    }
+
+    @Data
+    @Builder
+    public static class MfaStatusResponse {
+        private boolean enabled;
+        private int remainingBackupCodes;
     }
 
     @Data

@@ -105,6 +105,7 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
           secure: false,
+          bypass: bypassHtml,
           configure: configureProxyLogging,
         },
         '/api/v1': {
@@ -141,6 +142,7 @@ export default defineConfig(({ mode }) => {
     server: {
       port,
       host,
+      allowedHosts: true,
       headers: {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
@@ -152,6 +154,7 @@ export default defineConfig(({ mode }) => {
     preview: {
       port,
       host,
+      allowedHosts: true,
       headers: {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',

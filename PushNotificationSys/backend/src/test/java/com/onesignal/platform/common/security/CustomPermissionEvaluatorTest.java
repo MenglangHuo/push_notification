@@ -1,5 +1,6 @@
 package com.onesignal.platform.common.security;
 
+import com.onesignal.platform.app.infrastructure.AppRepository;
 import com.onesignal.platform.iam.application.PermissionCacheService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,9 @@ class CustomPermissionEvaluatorTest {
 
     @Mock
     private PermissionCacheService permissionCacheService;
+
+    @Mock
+    private AppRepository appRepository;
 
     @Mock
     private Authentication authentication;

@@ -51,6 +51,7 @@ spring:
         spring.json.trusted.packages: "com.onesignal.platform.*"
 
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:4000}
   jwt:
     # 256-bit secret for signing HS256 tokens (can be overridden via env var)
     secret: ${JWT_SECRET:4z7x9w2v8y5k1m3p6r9t0q4s7u2w5x8z1a3c5e7g9i1k3m5o7q9s1u3w5y7z9a1b}
@@ -63,6 +64,14 @@ app:
     master-key: ${CRYPTO_MASTER_KEY:k4P8q3Z1y7W2v9T0x5R8u1O3m6L9j2H5g7E0b3D6a8=}
   cors:
     allowed-origin-patterns: "*"
+
+mailgun:
+  enabled: ${MAILGUN_ENABLED:false}
+  api-key: ${MAILGUN_API_KEY:}
+  domain: ${MAILGUN_DOMAIN:}
+  base-url: ${MAILGUN_BASE_URL:https://api.mailgun.net/v3}
+  from-address: ${MAILGUN_FROM_ADDRESS:Bronx Notification <postmaster@example.com>}
+  webhook-signing-key: ${MAILGUN_WEBHOOK_KEY:}
 
 management:
   endpoints:

@@ -122,12 +122,14 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/apps/:appId/devices',
+    alias: '/admin/api/v1/apps/:appId/devices',
     name: 'Devices',
     component: () => import('@/views/DevicesView.vue'),
     meta: { requiresAuth: true, permission: 'device:read' },
   },
   {
     path: '/apps/:appId/notifications',
+    alias: '/admin/api/v1/apps/:appId/notifications',
     name: 'Notifications',
     component: () => import('@/views/NotificationsView.vue'),
     meta: { requiresAuth: true, permission: 'notification:read' },

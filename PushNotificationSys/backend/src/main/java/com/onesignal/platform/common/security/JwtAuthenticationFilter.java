@@ -36,6 +36,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UUID userId = jwtTokenProvider.getUserIdFromToken(token);
                 String email = jwtTokenProvider.getEmailFromToken(token);
                 boolean isSuperAdmin = jwtTokenProvider.isSuperAdminFromToken(token);
+                UUID defaultOrgId = jwtTokenProvider.getOrgIdFromToken(token);
+                if (defaultOrgId != null) {
+                    request.setAttribute("authenticatedOrgId", defaultOrgId);
+                }
 
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority("ROLE_USER"));

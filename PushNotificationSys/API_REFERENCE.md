@@ -15,14 +15,18 @@
 | :--- | :--- | :--- | :--- |
 | `POST` | `/admin/api/v1/auth/login` | None | `{"email": "...", "password": "..."}` -> Returns `{accessToken, user, memberships}` + sets refresh cookie |
 | `POST` | `/admin/api/v1/auth/refresh` | Cookie | Reads `push_refresh_token` cookie -> Returns new `{accessToken}` |
-| `POST` | `/admin/api/v1/auth/mfa/verify`| None | `{"mfaToken": "...", "code": "123456"}` -> Returns `{accessToken}` |
+| `POST` | `/admin/api/v1/auth/mfa/verify` | None | `{"mfaTicket": "...", "totpCode": "..."}` -> Verifies TOTP or backup code, returns `{accessToken, user}` + sets cookie |
+| `GET` | `/admin/api/v1/auth/mfa/status` | Bearer | Returns `{enabled: boolean, remainingBackupCodes: number}` |
+| `POST` | `/admin/api/v1/auth/mfa/setup` | Bearer | Generates Base32 secret, QR code data URL, and 10 backup recovery codes (10m TTL in Redis) |
+| `POST` | `/admin/api/v1/auth/mfa/confirm` | Bearer | `{"totpCode": "123456"}` -> Verifies test code, encrypts secret via AES-256-GCM, stores Argon2id backup hashes, activates MFA |
+| `POST` | `/admin/api/v1/auth/mfa/disable` | Bearer | `{"password": "..."}` -> Verifies password and turns off MFA |
 | `POST` | `/admin/api/v1/auth/logout` | None | Clears refresh cookie & invalidates session |
 | `GET` | `/admin/api/v1/auth/me` | Bearer | Returns current authenticated user and org roles |
 | `GET` | `/admin/api/v1/organizations` | Bearer | Lists user's accessible organizations |
 | `POST` | `/admin/api/v1/organizations` | Bearer | `{"name": "Acme", "slug": "acme"}` |
 | `GET` | `/admin/api/v1/organizations/{orgId}/members` | Bearer | Lists org members and roles |
-| `POST` | `/admin/api/v1/organizations/{orgId}/members/invite` | Bearer | `{"email": "...", "roleId": "..."}` |
-| `POST` | `/admin/api/v1/invitations/accept` | None | `{"token": "...", "password": "..."}` |
+| `POST` | `/admin/api/v1/organizations/{orgId}/invitations` | Bearer | `{"email": "...", "roleId": "...", "appId": "<optional-uuid>"}` -> Generates 7-day invite, returns `{id, token, inviteUrl}` |
+| `POST` | `/admin/api/v1/invitations/accept` | None | `{"token": "...", "fullName": "...", "password": "..."}` -> Creates or links user and membership |
 
 ---
 

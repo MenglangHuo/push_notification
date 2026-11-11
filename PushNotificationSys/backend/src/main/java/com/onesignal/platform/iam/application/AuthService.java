@@ -9,7 +9,11 @@ import com.onesignal.platform.iam.api.dto.AuthDto;
 import com.onesignal.platform.iam.domain.Membership;
 import com.onesignal.platform.iam.domain.Organization;
 import com.onesignal.platform.iam.domain.User;
+import com.onesignal.platform.app.application.CryptoVaultService;
+import com.onesignal.platform.common.security.TotpService;
+import com.onesignal.platform.iam.domain.UserMfa;
 import com.onesignal.platform.iam.infrastructure.MemberRoleAssignmentRepository;
+import com.onesignal.platform.iam.infrastructure.UserMfaRepository;
 import com.onesignal.platform.iam.infrastructure.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
@@ -31,9 +35,12 @@ import java.util.stream.Collectors;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final UserMfaRepository userMfaRepository;
     private final MemberRoleAssignmentRepository roleAssignmentRepository;
     private final Argon2PasswordService passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TotpService totpService;
+    private final CryptoVaultService cryptoVaultService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final AuditLogService auditLogService;
 
@@ -87,10 +94,42 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
 
-        // Here TOTP validation would be verified against user.getMfa().getTotpSecretEncrypted()
-        // For baseline Phase 1, accepting valid 6-digit codes
-        if (request.getTotpCode() == null || request.getTotpCode().length() != 6) {
-            throw new UnauthorizedException("Invalid MFA code format");
+        UserMfa mfa = user.getMfa();
+        if (mfa == null || !mfa.isEnabled()) {
+            throw new UnauthorizedException("MFA is not enabled for this user account");
+        }
+
+        String submittedCode = request.getTotpCode() != null ? request.getTotpCode().trim() : "";
+        boolean verified = false;
+
+        // 1. Validate Time-based One-Time Password (TOTP)
+        String decryptedSecret = cryptoVaultService.decrypt(mfa.getTotpSecretEncrypted());
+        if (totpService.verifyCode(decryptedSecret, submittedCode)) {
+            verified = true;
+        }
+
+        // 2. Fallback: Check emergency backup recovery codes
+        if (!verified && mfa.getBackupCodesHash() != null && !mfa.getBackupCodesHash().isEmpty()) {
+            String cleanBackupCode = submittedCode.toUpperCase().replaceAll("\\s+", "");
+            if (cleanBackupCode.length() == 8 && !cleanBackupCode.contains("-")) {
+                cleanBackupCode = cleanBackupCode.substring(0, 4) + "-" + cleanBackupCode.substring(4);
+            }
+
+            for (int i = 0; i < mfa.getBackupCodesHash().size(); i++) {
+                String hash = mfa.getBackupCodesHash().get(i);
+                if (passwordEncoder.matches(cleanBackupCode, hash)) {
+                    verified = true;
+                    mfa.getBackupCodesHash().remove(i);
+                    userMfaRepository.save(mfa);
+                    log.info("Emergency backup code used for user {}. Remaining codes: {}",
+                            user.getId(), mfa.getBackupCodesHash().size());
+                    break;
+                }
+            }
+        }
+
+        if (!verified) {
+            throw new UnauthorizedException("Invalid MFA verification code or recovery code");
         }
 
         return completeAuthentication(user, response);
@@ -252,12 +291,15 @@ public class AuthService {
                     .build());
         }
 
+        boolean mfaEnabled = user.getMfa() != null && user.getMfa().isEnabled();
+
         return AuthDto.UserProfileResponse.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .avatarUrl(user.getAvatarUrl())
                 .superAdmin(user.isSuperAdmin())
+                .mfaEnabled(mfaEnabled)
                 .organizations(orgSummaries)
                 .build();
     }

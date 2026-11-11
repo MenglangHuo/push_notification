@@ -1,9 +1,11 @@
 package com.onesignal.platform.common.security;
 
+import com.onesignal.platform.app.infrastructure.AppRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,7 +19,10 @@ import java.util.regex.Pattern;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class TenantContextFilter extends OncePerRequestFilter {
+
+    private final AppRepository appRepository;
 
     private static final Pattern ORG_URI_PATTERN = Pattern.compile("/organizations/([a-fA-F0-9\\-]{36})");
     private static final Pattern APP_URI_PATTERN = Pattern.compile("/apps/([a-fA-F0-9\\-]{36})");
@@ -48,6 +53,19 @@ public class TenantContextFilter extends OncePerRequestFilter {
 
             if (orgId == null && request.getAttribute("authenticatedOrgId") instanceof UUID attrOrgId) {
                 orgId = attrOrgId;
+            }
+
+            if (appId != null) {
+                try {
+                    UUID appOrgId = appRepository.findById(appId)
+                            .map(app -> app.getOrganization().getId())
+                            .orElse(null);
+                    if (appOrgId != null) {
+                        orgId = appOrgId;
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not resolve organization from appId {}: {}", appId, e.getMessage());
+                }
             }
 
             UUID userId = null;

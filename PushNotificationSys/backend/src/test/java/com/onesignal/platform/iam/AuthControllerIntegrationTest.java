@@ -135,8 +135,9 @@ class AuthControllerIntegrationTest {
         UUID devRoleId = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
         // 2. Issue invitation for a new developer
+        String testEmail = "dev-" + UUID.randomUUID().toString().substring(0, 8) + "@company.com";
         MemberDto.InviteMemberRequest inviteReq = new MemberDto.InviteMemberRequest();
-        inviteReq.setEmail("developer@company.com");
+        inviteReq.setEmail(testEmail);
         inviteReq.setRoleId(devRoleId);
 
         MvcResult inviteResult = mockMvc.perform(post("/admin/api/v1/organizations/" + acmeOrgId + "/invitations")
@@ -144,11 +145,35 @@ class AuthControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(inviteReq)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.email").value("developer@company.com"))
+                .andExpect(jsonPath("$.email").value(testEmail))
+                .andExpect(jsonPath("$.token").isString())
                 .andReturn();
 
-        // 3. Retrieve raw token generated for test (or query db)
-        var pendingInvites = invitationRepository.findByOrganizationIdAndAcceptedAtIsNull(acmeOrgId);
-        assertThat(pendingInvites).isNotEmpty();
+        // 3. Retrieve raw token returned from invitation endpoint
+        String inviteToken = objectMapper.readTree(inviteResult.getResponse().getContentAsString()).get("token").asText();
+        assertThat(inviteToken).isNotBlank();
+
+        // 4. Accept invitation using the returned token
+        MemberDto.AcceptInviteRequest acceptReq = new MemberDto.AcceptInviteRequest();
+        acceptReq.setToken(inviteToken);
+        acceptReq.setFullName("Jane Developer");
+        acceptReq.setPassword("Password123!");
+
+        mockMvc.perform(post("/admin/api/v1/invitations/accept")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(acceptReq)))
+                .andExpect(status().isOk());
+
+        // 5. Verify the newly registered user can now authenticate
+        AuthDto.LoginRequest devLogin = new AuthDto.LoginRequest();
+        devLogin.setEmail(testEmail);
+        devLogin.setPassword("Password123!");
+
+        mockMvc.perform(post("/admin/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(devLogin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.user.email").value(testEmail));
     }
 }

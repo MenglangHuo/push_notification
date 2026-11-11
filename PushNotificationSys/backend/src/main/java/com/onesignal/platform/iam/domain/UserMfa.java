@@ -4,6 +4,7 @@ import com.onesignal.platform.common.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -27,5 +28,6 @@ public class UserMfa extends BaseEntity {
     private boolean enabled = false;
 
     @Column(name = "backup_codes_hash")
-    private List<String> backupCodesHash;
+    @Builder.Default
+    private List<String> backupCodesHash = new ArrayList<>();
 }

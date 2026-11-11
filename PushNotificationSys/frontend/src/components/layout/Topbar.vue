@@ -24,6 +24,7 @@ import {
   Search,
   Send,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   Smartphone,
   Sun,
@@ -31,6 +32,8 @@ import {
   Users,
   Zap,
 } from 'lucide-vue-next'
+import MfaSetupModal from '@/components/auth/MfaSetupModal.vue'
+import MfaDisableModal from '@/components/auth/MfaDisableModal.vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -51,6 +54,8 @@ const searchInputRef = ref<HTMLInputElement | null>(null)
 const globalSearch = ref<string>('')
 const avatarImgError = ref<boolean>(false)
 const copiedField = ref<string | null>(null)
+const isMfaSetupOpen = ref<boolean>(false)
+const isMfaDisableOpen = ref<boolean>(false)
 
 const userDisplayName = computed(() => {
   const u = authStore.user
@@ -135,6 +140,15 @@ function handleLogout(closeDropdown?: () => void) {
   closeDropdown?.()
   authStore.logout()
   router.push('/login')
+}
+
+function handleMfaToggle(closeDropdown?: () => void) {
+  closeDropdown?.()
+  if (authStore.user?.mfaEnabled) {
+    isMfaDisableOpen.value = true
+  } else {
+    isMfaSetupOpen.value = true
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -357,6 +371,53 @@ onUnmounted(() => {
                   </div>
                 </div>
               </div>
+
+              <!-- Two-Factor Authentication Status & Action -->
+              <div
+                class="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800/80"
+              >
+                <div class="flex items-center gap-2 min-w-0">
+                  <div
+                    class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border"
+                    :class="
+                      authStore.user?.mfaEnabled
+                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/40'
+                        : 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-800/40'
+                    "
+                  >
+                    <ShieldCheck v-if="authStore.user?.mfaEnabled" class="w-3.5 h-3.5" />
+                    <ShieldAlert v-else class="w-3.5 h-3.5" />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                      2-Factor Auth
+                    </div>
+                    <div
+                      class="text-[11px] font-semibold"
+                      :class="
+                        authStore.user?.mfaEnabled
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-amber-600 dark:text-amber-400'
+                      "
+                    >
+                      {{ authStore.user?.mfaEnabled ? 'Enabled' : 'Disabled' }}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  @click="handleMfaToggle(close)"
+                  class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer"
+                  :class="
+                    authStore.user?.mfaEnabled
+                      ? 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40'
+                      : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40'
+                  "
+                >
+                  {{ authStore.user?.mfaEnabled ? 'Disable' : 'Enable' }}
+                </button>
+              </div>
             </div>
 
             <!-- Actions Row -->
@@ -386,4 +447,16 @@ onUnmounted(() => {
       </CustomDropdown>
     </div>
   </header>
+
+  <!-- MFA Setup and Disable Modals -->
+  <MfaSetupModal
+    :is-open="isMfaSetupOpen"
+    @close="isMfaSetupOpen = false"
+    @success="authStore.fetchMe"
+  />
+  <MfaDisableModal
+    :is-open="isMfaDisableOpen"
+    @close="isMfaDisableOpen = false"
+    @success="authStore.fetchMe"
+  />
 </template>

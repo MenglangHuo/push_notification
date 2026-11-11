@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { devicesApi, type DeviceSummary, type DeviceStats } from '@/api/devices'
+import { notificationsApi } from '@/api/notifications'
 import MetricCard from '@/components/dashboard/MetricCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
@@ -16,11 +17,17 @@ import {
   CheckCircle2,
   Copy,
   Globe,
+  Plus,
+  Radio,
   RefreshCw,
   Search,
+  Send,
   Smartphone,
+  Sparkles,
+  Tag,
   Trash2,
   Users,
+  X,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -46,6 +53,157 @@ const totalPages = ref<number>(1)
 const showDeleteModal = ref(false)
 const deviceToDelete = ref<DeviceSummary | null>(null)
 const isDeleting = ref(false)
+
+// Register Test Device modal
+const showRegisterModal = ref(false)
+const isRegistering = ref(false)
+const registerPlatform = ref<'ANDROID' | 'IOS' | 'WEB'>('ANDROID')
+const registerPushToken = ref('')
+const registerExternalUserId = ref('')
+const registerDeviceModel = ref('')
+const registerOsVersion = ref('')
+const registerAppVersion = ref('1.0.0')
+const registerLanguage = ref('en')
+const registerTimezone = ref('America/New_York')
+const registerTags = ref<{ key: string; value: string }[]>([
+  { key: 'tier', value: 'gold' },
+  { key: 'vip', value: 'true' },
+])
+
+// Quick Push Modal
+const showQuickPushModal = ref(false)
+const quickPushDevice = ref<DeviceSummary | null>(null)
+const quickPushTitle = ref('Exclusive Flash Promo! ⚡')
+const quickPushBody = ref('Hello from Admin Playground! Tap to claim your 50% discount.')
+const quickPushPriority = ref<'HIGH' | 'NORMAL'>('HIGH')
+const quickPushDeepLink = ref('playground://shop/promo')
+const isQuickPushing = ref(false)
+
+function applyPreset(preset: 'android-pixel' | 'android-s24' | 'ios-iphone' | 'web-chrome') {
+  const ts = Date.now()
+  if (preset === 'android-pixel') {
+    registerPlatform.value = 'ANDROID'
+    registerPushToken.value = `fcm_mock_token_pixel8_${ts}`
+    registerExternalUserId.value = `user-vip-${Math.floor(100 + Math.random() * 900)}`
+    registerDeviceModel.value = 'Google Pixel 8 Pro'
+    registerOsVersion.value = 'Android 15'
+    registerAppVersion.value = '4.2.0'
+    registerTags.value = [
+      { key: 'tier', value: 'gold' },
+      { key: 'vip', value: 'true' },
+      { key: 'orders_count', value: '15' },
+    ]
+  } else if (preset === 'android-s24') {
+    registerPlatform.value = 'ANDROID'
+    registerPushToken.value = `fcm_mock_token_s24_${ts}`
+    registerExternalUserId.value = `shopper-${Math.floor(100 + Math.random() * 900)}`
+    registerDeviceModel.value = 'Samsung Galaxy S24 Ultra'
+    registerOsVersion.value = 'Android 14'
+    registerAppVersion.value = '3.8.0'
+    registerTags.value = [
+      { key: 'tier', value: 'silver' },
+      { key: 'shopper', value: 'true' },
+    ]
+  } else if (preset === 'ios-iphone') {
+    registerPlatform.value = 'IOS'
+    registerPushToken.value = `apns_mock_token_iphone15_${ts}`
+    registerExternalUserId.value = `ios-vip-${Math.floor(100 + Math.random() * 900)}`
+    registerDeviceModel.value = 'iPhone 15 Pro Max'
+    registerOsVersion.value = 'iOS 18.1'
+    registerAppVersion.value = '5.0.1'
+    registerTags.value = [
+      { key: 'tier', value: 'gold' },
+      { key: 'ios_vip', value: 'true' },
+    ]
+  } else if (preset === 'web-chrome') {
+    registerPlatform.value = 'WEB'
+    registerPushToken.value = `https://fcm.googleapis.com/fcm/send/web_mock_${ts}`
+    registerExternalUserId.value = `web-user-${Math.floor(100 + Math.random() * 900)}`
+    registerDeviceModel.value = 'Chrome 128 on macOS'
+    registerOsVersion.value = 'macOS 15.1'
+    registerAppVersion.value = 'WebPortal 2.0'
+    registerTags.value = [{ key: 'channel', value: 'web' }]
+  }
+}
+
+function openRegisterModal() {
+  applyPreset('android-pixel')
+  showRegisterModal.value = true
+}
+
+function addTagRow() {
+  registerTags.value.push({ key: '', value: '' })
+}
+
+function removeTagRow(index: number) {
+  registerTags.value.splice(index, 1)
+}
+
+async function handleRegisterDevice() {
+  if (!appId.value) return
+  if (!registerPushToken.value.trim()) {
+    toastStore.warning('Token Required', 'Push token cannot be empty.')
+    return
+  }
+  isRegistering.value = true
+  try {
+    const tagMap: Record<string, string> = {}
+    registerTags.value.forEach((t) => {
+      if (t.key.trim()) tagMap[t.key.trim()] = t.value.trim()
+    })
+    await devicesApi.register(appId.value, {
+      platform: registerPlatform.value,
+      pushToken: registerPushToken.value.trim(),
+      externalUserId: registerExternalUserId.value.trim() || undefined,
+      deviceModel: registerDeviceModel.value.trim() || undefined,
+      osVersion: registerOsVersion.value.trim() || undefined,
+      appVersion: registerAppVersion.value.trim() || undefined,
+      language: registerLanguage.value.trim() || 'en',
+      timezone: registerTimezone.value.trim() || 'UTC',
+      tags: Object.keys(tagMap).length > 0 ? tagMap : undefined,
+    })
+    toastStore.success('Device Registered', 'Successfully registered into device pool.')
+    showRegisterModal.value = false
+    await loadData()
+  } catch (err: any) {
+    toastStore.error('Registration Failed', err.response?.data?.detail || err.message)
+  } finally {
+    isRegistering.value = false
+  }
+}
+
+function promptQuickPush(dev: DeviceSummary) {
+  quickPushDevice.value = dev
+  quickPushTitle.value = `Test Push for ${dev.deviceModel || dev.platform} ⚡`
+  quickPushBody.value = `Hello from Admin Playground! Testing push delivery to ${dev.platform}.`
+  showQuickPushModal.value = true
+}
+
+async function handleQuickPushSubmit() {
+  if (!quickPushDevice.value || !appId.value) return
+  isQuickPushing.value = true
+  try {
+    await notificationsApi.create(appId.value, {
+      title: quickPushTitle.value,
+      body: quickPushBody.value,
+      priority: quickPushPriority.value,
+      deepLink: quickPushDeepLink.value || undefined,
+      targetType: 'DEVICE_IDS',
+      targetPayload: {
+        deviceTokens: [quickPushDevice.value.pushTokenMasked],
+      },
+    })
+    toastStore.success(
+      'Push Dispatched',
+      `Notification sent to ${quickPushDevice.value.deviceModel || quickPushDevice.value.platform}`,
+    )
+    showQuickPushModal.value = false
+  } catch (err: any) {
+    toastStore.error('Dispatch Failed', err.response?.data?.detail || err.message)
+  } finally {
+    isQuickPushing.value = false
+  }
+}
 
 const filterOptions: SelectOption[] = [
   { label: 'All Devices', value: 'ALL' },
@@ -243,6 +401,15 @@ onMounted(() => {
         >
           Refresh
         </BaseButton>
+
+        <BaseButton
+          variant="primary"
+          size="sm"
+          :icon="Plus"
+          @click="openRegisterModal"
+        >
+          Register Test Device
+        </BaseButton>
       </div>
     </div>
 
@@ -415,14 +582,24 @@ onMounted(() => {
 
               <!-- Action -->
               <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                <button
-                  type="button"
-                  @click="promptDelete(dev)"
-                  title="Remove device"
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
-                >
-                  <Trash2 class="w-3.5 h-3.5" />
-                </button>
+                <div class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    @click="promptQuickPush(dev)"
+                    title="Send Quick Test Push to this device"
+                    class="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition cursor-pointer"
+                  >
+                    <Send class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="promptDelete(dev)"
+                    title="Remove device"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -440,6 +617,291 @@ onMounted(() => {
         @change-per-page="handlePerPageChange"
       />
     </div>
+
+    <!-- Register Test Device Modal -->
+    <ModernModal
+      v-model="showRegisterModal"
+      title="Register Test Device"
+      subtitle="Provision a simulated Android, iOS, or Web push token directly into your subscriber database"
+      :icon="Smartphone"
+      icon-class="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20"
+      :initial-width="580"
+      @close="showRegisterModal = false"
+    >
+      <div class="p-6 space-y-4 text-left">
+        <!-- Presets Bar -->
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+            Quick Playground Presets
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button
+              type="button"
+              @click="applyPreset('android-pixel')"
+              class="px-2.5 py-2 text-left rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition cursor-pointer"
+            >
+              <div class="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                <Smartphone class="w-3 h-3 text-emerald-500" />
+                Pixel 8 VIP
+              </div>
+              <div class="text-[10px] text-slate-400">Android 15 (Gold)</div>
+            </button>
+            <button
+              type="button"
+              @click="applyPreset('android-s24')"
+              class="px-2.5 py-2 text-left rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition cursor-pointer"
+            >
+              <div class="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                <Smartphone class="w-3 h-3 text-emerald-500" />
+                Galaxy S24
+              </div>
+              <div class="text-[10px] text-slate-400">Android 14 (Shopper)</div>
+            </button>
+            <button
+              type="button"
+              @click="applyPreset('ios-iphone')"
+              class="px-2.5 py-2 text-left rounded-xl border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 hover:bg-sky-50/50 dark:hover:bg-sky-950/20 transition cursor-pointer"
+            >
+              <div class="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                <Apple class="w-3 h-3 text-sky-500" />
+                iPhone 15 Pro
+              </div>
+              <div class="text-[10px] text-slate-400">iOS 18 (VIP)</div>
+            </button>
+            <button
+              type="button"
+              @click="applyPreset('web-chrome')"
+              class="px-2.5 py-2 text-left rounded-xl border border-slate-200 dark:border-slate-800 hover:border-amber-500/50 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition cursor-pointer"
+            >
+              <div class="text-[11px] font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                <Globe class="w-3 h-3 text-amber-500" />
+                Chrome Mac
+              </div>
+              <div class="text-[10px] text-slate-400">Web Push VAPID</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Platform Tabs -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            Target Platform
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              v-for="plat in (['ANDROID', 'IOS', 'WEB'] as const)"
+              :key="plat"
+              @click="registerPlatform = plat"
+              class="py-2 text-xs font-semibold rounded-xl border transition cursor-pointer flex items-center justify-center gap-1.5"
+              :class="[
+                registerPlatform === plat
+                  ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50',
+              ]"
+            >
+              <Smartphone v-if="plat === 'ANDROID'" class="w-3.5 h-3.5" />
+              <Apple v-else-if="plat === 'IOS'" class="w-3.5 h-3.5" />
+              <Globe v-else class="w-3.5 h-3.5" />
+              <span>{{ plat }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Push Token -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Device Push Token <span class="text-rose-500">*</span>
+          </label>
+          <BaseInput
+            v-model="registerPushToken"
+            placeholder="fcm_token_... or apns_token_..."
+            size="sm"
+          />
+        </div>
+
+        <!-- External User ID & Hardware Model -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              External User ID (Optional)
+            </label>
+            <BaseInput
+              v-model="registerExternalUserId"
+              placeholder="e.g. shopper-vip-101"
+              size="sm"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Hardware Model
+            </label>
+            <BaseInput
+              v-model="registerDeviceModel"
+              placeholder="e.g. Pixel 8 Pro"
+              size="sm"
+            />
+          </div>
+        </div>
+
+        <!-- OS & App Version -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              OS Version
+            </label>
+            <BaseInput
+              v-model="registerOsVersion"
+              placeholder="e.g. Android 15"
+              size="sm"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              App Version
+            </label>
+            <BaseInput
+              v-model="registerAppVersion"
+              placeholder="e.g. 4.2.0"
+              size="sm"
+            />
+          </div>
+        </div>
+
+        <!-- Custom Tags for Audience Segmentation -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Tag class="w-3.5 h-3.5 text-indigo-500" />
+              <span>Custom Segmentation Tags (Key / Value)</span>
+            </label>
+            <button
+              type="button"
+              @click="addTagRow"
+              class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus class="w-3 h-3" /> Add Tag
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <div
+              v-for="(t, idx) in registerTags"
+              :key="idx"
+              class="flex items-center gap-2"
+            >
+              <input
+                v-model="t.key"
+                placeholder="Tag Key (e.g. tier)"
+                class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                v-model="t.value"
+                placeholder="Tag Value (e.g. gold)"
+                class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                @click="removeTagRow(idx)"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition cursor-pointer"
+              >
+                <X class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showRegisterModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          variant="primary"
+          :icon="Sparkles"
+          :loading="isRegistering"
+          @click="handleRegisterDevice"
+        >
+          Register into Device Pool
+        </BaseButton>
+      </template>
+    </ModernModal>
+
+    <!-- Quick Push Modal -->
+    <ModernModal
+      v-model="showQuickPushModal"
+      title="Send Quick Test Push"
+      :subtitle="`Direct targeted dispatch to ${quickPushDevice?.deviceModel || quickPushDevice?.platform}`"
+      :icon="Send"
+      icon-class="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20"
+      :initial-width="500"
+      @close="showQuickPushModal = false"
+    >
+      <div class="p-6 space-y-4 text-left">
+        <!-- Target Info Pill -->
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            Target Device Token
+          </div>
+          <div class="font-mono text-xs text-indigo-600 dark:text-indigo-400 truncate">
+            {{ quickPushDevice?.pushTokenMasked }}
+          </div>
+          <div class="text-[10px] text-slate-500 flex items-center gap-2">
+            <span>Platform: <strong>{{ quickPushDevice?.platform }}</strong></span>
+            <span>•</span>
+            <span>Model: <strong>{{ quickPushDevice?.deviceModel }}</strong></span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Notification Title <span class="text-rose-500">*</span>
+          </label>
+          <BaseInput
+            v-model="quickPushTitle"
+            placeholder="e.g. Flash Promo Alert! ⚡"
+            size="sm"
+          />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Notification Body <span class="text-rose-500">*</span>
+          </label>
+          <textarea
+            v-model="quickPushBody"
+            rows="3"
+            placeholder="Write message contents..."
+            class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+          ></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Deep Link URL (Optional)
+          </label>
+          <BaseInput
+            v-model="quickPushDeepLink"
+            placeholder="e.g. playground://shop/promo"
+            size="sm"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="showQuickPushModal = false">
+          Cancel
+        </BaseButton>
+        <BaseButton
+          variant="primary"
+          :icon="Send"
+          :loading="isQuickPushing"
+          @click="handleQuickPushSubmit"
+        >
+          Dispatch Push Immediately
+        </BaseButton>
+      </template>
+    </ModernModal>
 
     <!-- Delete Device Modal -->
     <ModernModal

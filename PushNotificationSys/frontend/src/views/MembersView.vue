@@ -4,18 +4,24 @@ import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { membersApi } from '@/api/members'
 import { rolesApi } from '@/api/roles'
-import type { Member, Role } from '@/api/types'
+import { appsApi, type AppSummary } from '@/api/apps'
+import type { Invitation, Member, Role } from '@/api/types'
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import CustomSelect, { type SelectOption } from '@/components/common/CustomSelect.vue'
 import ModernModal from '@/components/common/ModernModal.vue'
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
+  Copy,
+  ExternalLink,
+  Globe,
   Mail,
   Plus,
   RefreshCw,
   Shield,
+  Smartphone,
   Trash2,
   UserCheck,
   UserPlus,
@@ -27,14 +33,18 @@ const toastStore = useToastStore()
 
 const members = ref<Member[]>([])
 const roles = ref<Role[]>([])
+const apps = ref<AppSummary[]>([])
 const isLoading = ref<boolean>(false)
 
 // Invite modal
 const showInviteModal = ref(false)
 const inviteEmail = ref('')
 const inviteRoleId = ref('')
+const inviteAppId = ref('') // empty string = org-wide
 const isInviting = ref(false)
 const inviteError = ref('')
+const createdInvite = ref<Invitation | null>(null)
+const hasCopiedLink = ref(false)
 
 const roleOptions = computed<SelectOption[]>(() => {
   return roles.value.map((r) => ({
@@ -43,21 +53,68 @@ const roleOptions = computed<SelectOption[]>(() => {
   }))
 })
 
+const appOptions = computed<SelectOption[]>(() => {
+  return [
+    { label: '🌐 All Applications (Organization-wide)', value: '' },
+    ...apps.value.map((a) => ({
+      label: `📱 ${a.name}`,
+      value: a.id,
+    })),
+  ]
+})
+
+const inviteLink = computed(() => {
+  if (!createdInvite.value?.token) return ''
+  return `${window.location.origin}/accept-invite?token=${encodeURIComponent(createdInvite.value.token)}`
+})
+
+async function copyInviteLink() {
+  if (!inviteLink.value) return
+  try {
+    await navigator.clipboard.writeText(inviteLink.value)
+    hasCopiedLink.value = true
+    setTimeout(() => {
+      hasCopiedLink.value = false
+    }, 2500)
+  } catch {
+    toastStore.error('Copy Failed', 'Please manually select and copy the link')
+  }
+}
+
+function resetInviteModal() {
+  showInviteModal.value = false
+  createdInvite.value = null
+  inviteEmail.value = ''
+  inviteAppId.value = ''
+  inviteError.value = ''
+  hasCopiedLink.value = false
+}
+
+function startAnotherInvite() {
+  createdInvite.value = null
+  inviteEmail.value = ''
+  inviteAppId.value = ''
+  inviteError.value = ''
+  hasCopiedLink.value = false
+}
+
 async function loadData() {
   if (!authStore.currentOrgId) return
   isLoading.value = true
   try {
-    const [m, r] = await Promise.all([
+    const [m, r, a] = await Promise.all([
       membersApi.list(authStore.currentOrgId).catch(() => []),
       rolesApi.listRoles(authStore.currentOrgId).catch(() => []),
+      appsApi.list(authStore.currentOrgId).catch(() => []),
     ])
     members.value = m
     roles.value = r
+    apps.value = a
     if (r.length > 0 && !inviteRoleId.value) {
       inviteRoleId.value = r[0].id
     }
   } catch (err: any) {
-    console.error('Failed to load members', err)
+    console.error('Failed to load members or apps', err)
   } finally {
     isLoading.value = false
   }
@@ -69,13 +126,13 @@ async function handleInvite() {
   inviteError.value = ''
 
   try {
-    await membersApi.invite(authStore.currentOrgId, {
+    const res = await membersApi.invite(authStore.currentOrgId, {
       email: inviteEmail.value.trim(),
       roleId: inviteRoleId.value,
+      appId: inviteAppId.value ? inviteAppId.value : undefined,
     })
-    toastStore.success('Invitation Sent', `Invite email sent to ${inviteEmail.value}`)
-    showInviteModal.value = false
-    inviteEmail.value = ''
+    createdInvite.value = res
+    toastStore.success('Invitation Created', `Invite generated for ${inviteEmail.value}`)
     await loadData()
   } catch (err: any) {
     inviteError.value = err.response?.data?.detail || err.message || 'Failed to send invite'
@@ -250,13 +307,19 @@ onMounted(() => {
     <!-- Invite Member Modal -->
     <ModernModal
       v-model="showInviteModal"
-      title="Invite Team Member"
-      subtitle="Send an invitation link to collaborate in this workspace"
-      :icon="UserPlus"
-      :initial-width="500"
-      @close="showInviteModal = false"
+      :title="createdInvite ? 'Invitation Created' : 'Invite Team Member'"
+      :subtitle="createdInvite ? 'Share the unique onboarding link with your colleague' : 'Send an invitation link to collaborate in this workspace'"
+      :icon="createdInvite ? CheckCircle2 : UserPlus"
+      :initial-width="520"
+      @close="resetInviteModal"
     >
-      <form id="invite-member-form" @submit.prevent="handleInvite" class="p-6 space-y-5 text-left">
+      <!-- Mode 1: Invitation Form -->
+      <form
+        v-if="!createdInvite"
+        id="invite-member-form"
+        @submit.prevent="handleInvite"
+        class="p-6 space-y-5 text-left"
+      >
         <div
           v-if="inviteError"
           class="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2"
@@ -287,20 +350,88 @@ onMounted(() => {
             size="md"
           />
         </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+            <span>Application Scope</span>
+            <span class="text-[10px] font-normal text-slate-400">Optional</span>
+          </label>
+          <CustomSelect
+            v-model="inviteAppId"
+            :options="appOptions"
+            :block="true"
+            size="md"
+          />
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            Selecting a specific app restricts this collaborator's access strictly to that application. Choose "All Applications" for workspace-wide access.
+          </p>
+        </div>
       </form>
 
+      <!-- Mode 2: Invitation Created / Copy Link Screen -->
+      <div v-else class="p-6 space-y-5 text-left">
+        <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 space-y-2">
+          <div class="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-semibold text-sm">
+            <CheckCircle2 class="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>Invitation successfully generated for {{ createdInvite.email }}</span>
+          </div>
+          <div class="text-xs text-emerald-700/80 dark:text-emerald-300/80 flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            <span><strong>Role:</strong> {{ roles.find(r => r.id === createdInvite?.roleId)?.name || 'Custom' }}</span>
+            <span><strong>Scope:</strong> {{ apps.find(a => a.id === createdInvite?.appId)?.name || 'Organization-wide' }}</span>
+            <span><strong>Expires:</strong> In 7 days</span>
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Direct Onboarding Link
+          </label>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              readonly
+              :value="inviteLink"
+              class="w-full px-3.5 py-2.5 text-xs font-mono rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 select-all focus:outline-none"
+            />
+            <BaseButton
+              type="button"
+              :variant="hasCopiedLink ? 'secondary' : 'primary'"
+              size="sm"
+              :icon="hasCopiedLink ? Check : Copy"
+              class="shrink-0"
+              @click="copyInviteLink"
+            >
+              {{ hasCopiedLink ? 'Copied!' : 'Copy' }}
+            </BaseButton>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+            Send this URL to your colleague. When they open it, they will enter their full name and password to complete setup.
+          </p>
+        </div>
+      </div>
+
       <template #footer>
-        <BaseButton variant="ghost" @click="showInviteModal = false">
-          Cancel
-        </BaseButton>
-        <BaseButton
-          type="submit"
-          form="invite-member-form"
-          variant="primary"
-          :loading="isInviting"
-        >
-          Send Invite
-        </BaseButton>
+        <template v-if="!createdInvite">
+          <BaseButton variant="ghost" @click="resetInviteModal">
+            Cancel
+          </BaseButton>
+          <BaseButton
+            type="submit"
+            form="invite-member-form"
+            variant="primary"
+            :loading="isInviting"
+          >
+            Generate Invitation
+          </BaseButton>
+        </template>
+        <template v-else>
+          <BaseButton variant="outline" @click="startAnotherInvite">
+            Invite Another
+          </BaseButton>
+          <BaseButton variant="primary" @click="resetInviteModal">
+            Done
+          </BaseButton>
+        </template>
       </template>
     </ModernModal>
   </div>

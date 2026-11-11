@@ -9,6 +9,7 @@ export interface UserProfile {
   profile?: string
   role?: string
   superAdmin: boolean
+  mfaEnabled?: boolean
   organizations: OrgMembershipSummary[]
 }
 
@@ -26,6 +27,26 @@ export interface LoginResponse {
   mfaRequired: boolean
   mfaTicket?: string
   user?: UserProfile
+}
+
+export interface MfaStatusResponse {
+  enabled: boolean
+  remainingBackupCodes: number
+}
+
+export interface MfaSetupResponse {
+  secretKey: string
+  qrCodeDataUrl: string
+  otpauthUri: string
+  backupCodes: string[]
+}
+
+export interface MfaConfirmRequest {
+  totpCode: string
+}
+
+export interface MfaDisableRequest {
+  password: string
 }
 
 export interface Member {
@@ -67,6 +88,8 @@ export interface Invitation {
   roleId: string
   roleName: string
   appId?: string | null
+  token?: string
+  inviteUrl?: string
   expiresAt: string
   acceptedAt?: string | null
   createdAt: string

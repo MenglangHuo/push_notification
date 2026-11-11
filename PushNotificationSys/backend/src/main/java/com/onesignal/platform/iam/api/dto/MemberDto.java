@@ -44,6 +44,8 @@ public class MemberDto {
         private UUID roleId;
         private String roleName;
         private UUID appId;
+        private String token;
+        private String inviteUrl;
         private Instant expiresAt;
         private Instant acceptedAt;
         private Instant createdAt;

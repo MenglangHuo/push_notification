@@ -7,7 +7,11 @@ import com.onesignal.platform.common.security.JwtTokenProvider;
 import com.onesignal.platform.iam.api.dto.AuthDto;
 import com.onesignal.platform.iam.domain.Organization;
 import com.onesignal.platform.iam.domain.User;
+import com.onesignal.platform.app.application.CryptoVaultService;
+import com.onesignal.platform.common.security.TotpService;
+import com.onesignal.platform.iam.domain.UserMfa;
 import com.onesignal.platform.iam.infrastructure.MemberRoleAssignmentRepository;
+import com.onesignal.platform.iam.infrastructure.UserMfaRepository;
 import com.onesignal.platform.iam.infrastructure.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +40,9 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private UserMfaRepository userMfaRepository;
+
+    @Mock
     private MemberRoleAssignmentRepository roleAssignmentRepository;
 
     @Mock
@@ -43,6 +50,12 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private TotpService totpService;
+
+    @Mock
+    private CryptoVaultService cryptoVaultService;
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -64,9 +77,12 @@ class AuthServiceTest {
 
         authService = new AuthService(
                 userRepository,
+                userMfaRepository,
                 roleAssignmentRepository,
                 passwordEncoder,
                 jwtTokenProvider,
+                totpService,
+                cryptoVaultService,
                 redisTemplate,
                 auditLogService
         );
@@ -179,5 +195,106 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.refreshToken(reusedToken, httpServletResponse))
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("Token reuse detected");
+    }
+
+    @Test
+    @DisplayName("Login with MFA enabled returns mfaRequired=true and ticket without JWT")
+    void login_mfaEnabled_returnsTicket() {
+        UUID userId = UUID.randomUUID();
+        UserMfa mfa = UserMfa.builder().enabled(true).totpSecretEncrypted("enc_secret").build();
+        User user = User.builder()
+                .email("mfa_user@pushnotify.local")
+                .passwordHash("argon2_hash")
+                .fullName("MFA User")
+                .status("ACTIVE")
+                .mfa(mfa)
+                .build();
+        user.setId(userId);
+
+        AuthDto.LoginRequest request = new AuthDto.LoginRequest();
+        request.setEmail("mfa_user@pushnotify.local");
+        request.setPassword("Password123!");
+
+        when(userRepository.findByEmailWithMemberships("mfa_user@pushnotify.local")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("Password123!", "argon2_hash")).thenReturn(true);
+
+        AuthDto.LoginResponse response = authService.login(request, httpServletResponse);
+
+        assertThat(response).isNotNull();
+        assertThat(response.isMfaRequired()).isTrue();
+        assertThat(response.getMfaTicket()).isNotBlank();
+        assertThat(response.getAccessToken()).isNull();
+        verify(valueOperations).set(startsWith("auth:mfa:"), eq(userId.toString()), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("verifyMfa with valid TOTP code succeeds and returns access token")
+    void verifyMfa_validTotp_success() {
+        UUID userId = UUID.randomUUID();
+        UserMfa mfa = UserMfa.builder().enabled(true).totpSecretEncrypted("enc_secret").build();
+        User user = User.builder()
+                .email("mfa_user@pushnotify.local")
+                .status("ACTIVE")
+                .mfa(mfa)
+                .build();
+        user.setId(userId);
+
+        String ticket = UUID.randomUUID().toString();
+        AuthDto.MfaVerifyRequest request = new AuthDto.MfaVerifyRequest();
+        request.setMfaTicket(ticket);
+        request.setTotpCode("482910");
+
+        when(valueOperations.get("auth:mfa:" + ticket)).thenReturn(userId.toString());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(cryptoVaultService.decrypt("enc_secret")).thenReturn("DEC_SECRET");
+        when(totpService.verifyCode("DEC_SECRET", "482910")).thenReturn(true);
+        when(jwtTokenProvider.generateAccessToken(eq(userId), any(), anyBoolean(), any()))
+                .thenReturn("valid_jwt_after_mfa");
+
+        AuthDto.LoginResponse response = authService.verifyMfa(request, httpServletResponse);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getAccessToken()).isEqualTo("valid_jwt_after_mfa");
+        assertThat(response.isMfaRequired()).isFalse();
+        verify(redisTemplate).delete("auth:mfa:" + ticket);
+    }
+
+    @Test
+    @DisplayName("verifyMfa with emergency backup code succeeds and consumes the code")
+    void verifyMfa_validBackupCode_consumesCodeAndSucceeds() {
+        UUID userId = UUID.randomUUID();
+        List<String> backupHashes = new ArrayList<>(List.of("hashed_backup_code_1", "hashed_backup_code_2"));
+        UserMfa mfa = UserMfa.builder()
+                .enabled(true)
+                .totpSecretEncrypted("enc_secret")
+                .backupCodesHash(backupHashes)
+                .build();
+        User user = User.builder()
+                .email("mfa_user@pushnotify.local")
+                .status("ACTIVE")
+                .mfa(mfa)
+                .build();
+        user.setId(userId);
+
+        String ticket = UUID.randomUUID().toString();
+        AuthDto.MfaVerifyRequest request = new AuthDto.MfaVerifyRequest();
+        request.setMfaTicket(ticket);
+        request.setTotpCode("ABCD-1234");
+
+        when(valueOperations.get("auth:mfa:" + ticket)).thenReturn(userId.toString());
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(cryptoVaultService.decrypt("enc_secret")).thenReturn("DEC_SECRET");
+        when(totpService.verifyCode("DEC_SECRET", "ABCD-1234")).thenReturn(false);
+        when(passwordEncoder.matches("ABCD-1234", "hashed_backup_code_1")).thenReturn(true);
+        when(jwtTokenProvider.generateAccessToken(eq(userId), any(), anyBoolean(), any()))
+                .thenReturn("valid_jwt_after_backup");
+
+        AuthDto.LoginResponse response = authService.verifyMfa(request, httpServletResponse);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getAccessToken()).isEqualTo("valid_jwt_after_backup");
+        // Verify backup code was consumed (removed from list)
+        assertThat(mfa.getBackupCodesHash()).hasSize(1);
+        verify(userMfaRepository).save(mfa);
     }
 }

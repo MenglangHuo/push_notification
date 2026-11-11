@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
-import type { UserProfile } from '../api/types'
+import type { MfaSetupResponse, MfaStatusResponse, UserProfile } from '../api/types'
 
 export interface PendingTwoFactorData {
   username: string
@@ -66,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
   const remainingAttempts = ref<number>(5)
   const lockoutUntil = ref<number | null>(null)
+  const mfaStatus = ref<MfaStatusResponse | null>(null)
 
   // Pending 2-Factor Authentication session
   const pendingTwoFactor = ref<PendingTwoFactorData | null>(
@@ -151,11 +152,21 @@ export const useAuthStore = defineStore('auth', () => {
     if (!user.value) return false
     if (user.value.superAdmin) return true
 
-    if (!currentOrgId.value) return false
-    const orgMembership = user.value.organizations.find((o) => o.orgId === currentOrgId.value)
-    if (!orgMembership) return false
+    if (currentOrgId.value) {
+      const orgMembership = user.value.organizations.find((o) => o.orgId === currentOrgId.value)
+      if (orgMembership && orgMembership.permissions.includes(permissionCode)) {
+        return true
+      }
+    }
 
-    return orgMembership.permissions.includes(permissionCode)
+    // Fallback: if current organization does not match or lack permission, check user's other organizations
+    const matchingOrg = user.value.organizations.find((o) => o.permissions.includes(permissionCode))
+    if (matchingOrg) {
+      setCurrentOrg(matchingOrg.orgId)
+      return true
+    }
+
+    return false
   }
 
   async function fetchMe() {
@@ -296,6 +307,43 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function fetchMfaStatus() {
+    try {
+      const status = await authApi.getMfaStatus()
+      mfaStatus.value = status
+      if (user.value) {
+        user.value.mfaEnabled = status.enabled
+      }
+      return status
+    } catch (e) {
+      console.warn('Failed to fetch MFA status:', e)
+      return null
+    }
+  }
+
+  async function setupMfa(): Promise<MfaSetupResponse> {
+    return await authApi.setupMfa()
+  }
+
+  async function confirmMfa(totpCode: string): Promise<MfaStatusResponse> {
+    const res = await authApi.confirmMfa({ totpCode })
+    mfaStatus.value = res
+    if (user.value) {
+      user.value.mfaEnabled = true
+      localStorage.setItem('bronx_user', JSON.stringify(user.value))
+    }
+    return res
+  }
+
+  async function disableMfa(password: string): Promise<void> {
+    await authApi.disableMfa({ password })
+    mfaStatus.value = { enabled: false, remainingBackupCodes: 0 }
+    if (user.value) {
+      user.value.mfaEnabled = false
+      localStorage.setItem('bronx_user', JSON.stringify(user.value))
+    }
+  }
+
   return {
     accessToken,
     token,
@@ -307,6 +355,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     remainingAttempts,
     lockoutUntil,
+    mfaStatus,
     pendingTwoFactor,
     hasPendingTwoFactor,
     isAuthenticated,
@@ -324,6 +373,10 @@ export const useAuthStore = defineStore('auth', () => {
     fetchMe,
     login,
     verifyMfa,
+    fetchMfaStatus,
+    setupMfa,
+    confirmMfa,
+    disableMfa,
     logout,
     initAuth,
   }

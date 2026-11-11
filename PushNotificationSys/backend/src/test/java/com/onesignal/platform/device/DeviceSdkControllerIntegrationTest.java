@@ -60,6 +60,6 @@ class DeviceSdkControllerIntegrationTest {
         mockMvc.perform(post("/sdk/v1/devices")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

@@ -118,6 +118,18 @@
             <version>${bouncycastle.version}</version>
         </dependency>
 
+        <!-- QR Code Generation for MFA / TOTP -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- Firebase Admin SDK for FCM HTTP v1 dispatch -->
         <dependency>
             <groupId>com.google.firebase</groupId>

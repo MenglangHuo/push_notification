@@ -78,6 +78,13 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      MAILGUN_ENABLED: ${MAILGUN_ENABLED:-false}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+      MAILGUN_BASE_URL: ${MAILGUN_BASE_URL:-https://api.mailgun.net/v3}
+      MAILGUN_FROM_ADDRESS: ${MAILGUN_FROM_ADDRESS:-Bronx Notification <postmaster@sandbox.mailgun.org>}
+      MAILGUN_WEBHOOK_KEY: ${MAILGUN_WEBHOOK_KEY:-}
 
   frontend:
     build:

@@ -23,6 +23,7 @@ spring:
     bootstrap-servers: localhost:9092
 
 app:
+  frontend-url: http://localhost:4000
   jwt:
     secret: 4z7x9w2v8y5k1m3p6r9t0q4s7u2w5x8z1a3c5e7g9i1k3m5o7q9s1u3w5y7z9a1b
     access-token-expiration-seconds: 900
@@ -33,6 +34,14 @@ app:
     master-key: k4P8q3Z1y7W2v9T0x5R8u1O3m6L9j2H5g7E0b3D6a8=
   cors:
     allowed-origin-patterns: "*"
+
+mailgun:
+  enabled: false
+  api-key: test-api-key
+  domain: sandbox.example.com
+  base-url: https://api.mailgun.net/v3
+  from-address: Bronx Notification <postmaster@example.com>
+  webhook-signing-key: test-webhook-key
 
 management:
   endpoints:

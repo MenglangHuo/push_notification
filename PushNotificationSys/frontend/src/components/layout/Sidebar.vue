@@ -204,7 +204,7 @@ const navSections = computed<NavSection[]>(() => {
             },
             {
               id: 'web-push-test',
-              name: 'Web Push Bench',
+              name: 'Push Testbench & Sim',
               path: `/apps/${appId}/web-push-test`,
               icon: Radio,
               permission: 'notification:create',
@@ -608,7 +608,7 @@ function handleLogout() {
                 >
                   <!-- Continuous vertical trunk segment (rendered through each item EXCEPT below the last child) -->
                   <div
-                    v-if="subIdx < item.children.length - 1"
+                    v-if="subIdx < (item.children?.length ?? 0) - 1"
                     class="absolute w-[2px] pointer-events-none transition-colors duration-200 z-10"
                     :class="[
                       isGroupActive(item)

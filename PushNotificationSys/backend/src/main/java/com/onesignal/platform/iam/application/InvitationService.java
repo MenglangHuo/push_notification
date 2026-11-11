@@ -11,6 +11,10 @@ import com.onesignal.platform.iam.domain.*;
 import com.onesignal.platform.iam.infrastructure.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.onesignal.platform.app.domain.App;
+import com.onesignal.platform.app.infrastructure.AppRepository;
+import com.onesignal.platform.common.email.EmailService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +44,13 @@ public class InvitationService {
     private final Argon2PasswordService passwordEncoder;
     private final PermissionCacheService permissionCacheService;
     private final AuditLogService auditLogService;
+    private final EmailService emailService;
+    private final AppRepository appRepository;
 
-    private static final Duration INVITATION_EXPIRATION = Duration.ofDays(3);
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+    private static final Duration INVITATION_EXPIRATION = Duration.ofDays(7);
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Transactional
@@ -90,12 +99,28 @@ public class InvitationService {
 
         log.info("Invitation issued for {} to org {}. Raw accept token: {}", email, org.getName(), rawToken);
 
+        String baseUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.replaceAll("/+$", "") : "http://localhost:5173";
+        String fullInviteUrl = baseUrl + "/accept-invite?token=" + rawToken;
+
+        String appName = null;
+        if (request.getAppId() != null) {
+            appName = appRepository.findById(request.getAppId()).map(App::getName).orElse(null);
+        }
+
+        try {
+            emailService.sendInvitationEmail(saved.getEmail(), org.getName(), role.getName(), appName, fullInviteUrl);
+        } catch (Exception ex) {
+            log.warn("Non-fatal: failed to trigger async invitation email to {}: {}", saved.getEmail(), ex.getMessage());
+        }
+
         return MemberDto.InvitationResponse.builder()
                 .id(saved.getId())
                 .email(saved.getEmail())
                 .roleId(role.getId())
                 .roleName(role.getName())
                 .appId(saved.getAppId())
+                .token(rawToken)
+                .inviteUrl(fullInviteUrl)
                 .expiresAt(saved.getExpiresAt())
                 .createdAt(saved.getCreatedAt())
                 .build();

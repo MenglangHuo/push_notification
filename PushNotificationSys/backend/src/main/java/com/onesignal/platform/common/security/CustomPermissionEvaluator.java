@@ -1,5 +1,6 @@
 package com.onesignal.platform.common.security;
 
+import com.onesignal.platform.app.infrastructure.AppRepository;
 import com.onesignal.platform.iam.application.PermissionCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class CustomPermissionEvaluator implements PermissionEvaluator {
 
     private final PermissionCacheService permissionCacheService;
+    private final AppRepository appRepository;
 
     @Override
     public boolean hasPermission(Authentication authentication, Object targetDomainObject, Object permission) {
@@ -30,9 +32,6 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
         UUID userId = TenantContextHolder.getUserId();
         UUID orgId = TenantContextHolder.getOrganizationId();
-        if (userId == null || orgId == null) {
-            return false;
-        }
 
         UUID appId = null;
         if (targetDomainObject instanceof UUID uuid) {
@@ -43,6 +42,18 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             } catch (IllegalArgumentException ignored) {}
         } else {
             appId = TenantContextHolder.getAppId();
+        }
+
+        if (orgId == null && appId != null) {
+            try {
+                orgId = appRepository.findById(appId)
+                        .map(a -> a.getOrganization().getId())
+                        .orElse(null);
+            } catch (Exception ignored) {}
+        }
+
+        if (userId == null || orgId == null) {
+            return false;
         }
 
         String requiredPermission = permission.toString();
@@ -62,9 +73,6 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
 
         UUID userId = TenantContextHolder.getUserId();
         UUID orgId = TenantContextHolder.getOrganizationId();
-        if (userId == null || orgId == null) {
-            return false;
-        }
 
         UUID appId = null;
         if ("app".equalsIgnoreCase(targetType) && targetId != null) {
@@ -73,6 +81,18 @@ public class CustomPermissionEvaluator implements PermissionEvaluator {
             } catch (IllegalArgumentException ignored) {}
         } else {
             appId = TenantContextHolder.getAppId();
+        }
+
+        if (orgId == null && appId != null) {
+            try {
+                orgId = appRepository.findById(appId)
+                        .map(a -> a.getOrganization().getId())
+                        .orElse(null);
+            } catch (Exception ignored) {}
+        }
+
+        if (userId == null || orgId == null) {
+            return false;
         }
 
         String requiredPermission = permission.toString();
