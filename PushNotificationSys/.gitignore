@@ -85,3 +85,20 @@ coverage/
 *.lcov
 tmp/
 temp/
+
+# ==========================================
+# User Uploaded Media (Local / Dev Storage)
+# ==========================================
+backend/uploads/*
+!backend/uploads/avatars/
+backend/uploads/avatars/*
+!backend/uploads/avatars/.gitkeep
+uploads/*
+!uploads/avatars/
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+
+# Docker Image Distribution Tarballs
+dist-images/
+
+

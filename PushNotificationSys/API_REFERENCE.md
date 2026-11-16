@@ -1,11 +1,12 @@
 # API Reference & Route Cheatsheet (API_REFERENCE.md)
 
 > **Format:** Compact endpoint index for high-speed review with low token overhead.  
-> **Base URL:** `http://localhost:8080`  
-> **Auth Methods:**
-> - Admin Dashboard: `Authorization: Bearer <JWT>`
-> - Server REST Ingest: `X-Api-Key: os_live_<hash>`
-> - Mobile/Web SDK: `X-Sdk-Key: os_pub_<hash>`
+> **Base URL:** `http://localhost:8080` (or `http://localhost:4000` via frontend proxy)  
+> **Auth Boundaries & Header Specification:**
+> - **1. Admin Web Management (`/admin/api/v1/**`):** Authenticated strictly via User Session JWT (`Authorization: Bearer <JWT>`). **Never** send or require `X-Api-Key` or `X-Sdk-Key`. Unused headers (`X-App-Id`, `X-Org-Id`) are stripped when resource paths `/apps/{appId}` or `/organizations/{orgId}` already identify the tenant target.
+> - **2. Customer Server REST Ingest (`/api/v1/**`):** Authenticated via confidential Server Key (`X-Api-Key: os_live_<hash>`). Kept on backend servers; never transmitted by browser web clients. Optional `Idempotency-Key` for deduplication.
+> - **3. Client Mobile & Web SDK (`/sdk/v1/**`):** Authenticated via Public SDK Key (`X-Sdk-Key: os_pub_<hash>`). Embedded in native mobile apps / web push clients. Never send admin `Authorization: Bearer` or `X-Org-Id` to SDK endpoints.
+> **Comprehensive Integration Guide:** See [SYSTEM_INTEGRATION_GUIDE.md](file:///media/menglanghuo/Menglang/Bronx/PushNotificationSys/docs/SYSTEM_INTEGRATION_GUIDE.md) for complete multi-language SDK code, Kafka streaming, and client apps integration.
 
 ---
 
@@ -22,9 +23,14 @@
 | `POST` | `/admin/api/v1/auth/mfa/disable` | Bearer | `{"password": "..."}` -> Verifies password and turns off MFA |
 | `POST` | `/admin/api/v1/auth/logout` | None | Clears refresh cookie & invalidates session |
 | `GET` | `/admin/api/v1/auth/me` | Bearer | Returns current authenticated user and org roles |
+| `PUT` | `/admin/api/v1/auth/me/profile` | Bearer | `{"fullName": "...", "avatarUrl": "...", "removeAvatar": false}` -> Updates self profile & avatar. Normalizes relative storage path. |
 | `GET` | `/admin/api/v1/organizations` | Bearer | Lists user's accessible organizations |
 | `POST` | `/admin/api/v1/organizations` | Bearer | `{"name": "Acme", "slug": "acme"}` |
-| `GET` | `/admin/api/v1/organizations/{orgId}/members` | Bearer | Lists org members and roles |
+| `GET` | `/admin/api/v1/organizations/{orgId}/members` | Bearer | Lists org members, avatars, roles, and organization affiliations |
+| `PUT` | `/admin/api/v1/organizations/{orgId}/members/{membershipId}` | Bearer | `{"fullName": "...", "avatarUrl": "...", "removeAvatar": false}` -> Updates member profile attributes (strictly self-only; 403 Forbidden for other members) |
+| `POST` | `/admin/api/v1/organizations/{orgId}/members/{membershipId}/roles` | Bearer | `{"roleId": "...", "appId": "<optional>"}` -> Assigns role to member |
+| `DELETE` | `/admin/api/v1/organizations/{orgId}/members/{membershipId}/roles/{assignmentId}` | Bearer | Revokes specific role assignment |
+| `DELETE` | `/admin/api/v1/organizations/{orgId}/members/{membershipId}` | Bearer | Removes member from organization |
 | `POST` | `/admin/api/v1/organizations/{orgId}/invitations` | Bearer | `{"email": "...", "roleId": "...", "appId": "<optional-uuid>"}` -> Generates 7-day invite, returns `{id, token, inviteUrl}` |
 | `POST` | `/admin/api/v1/invitations/accept` | None | `{"token": "...", "fullName": "...", "password": "..."}` -> Creates or links user and membership |
 
@@ -33,9 +39,9 @@
 ## 2. App & Provider Credentials (`/admin/api/v1`)
 
 | Method | Path | Auth | Payload / Description |
-| :--- | :--- | :--- | :--- |
+| `GET` | `/admin/api/v1/users/me/accessible-apps` | Bearer | Query `?orgId=<UUID>` (optional). Returns apps accessible by the current authenticated user (org-wide or app-scoped) |
 | `GET` | `/admin/api/v1/organizations/{orgId}/apps` | Bearer | List apps in organization |
-| `POST` | `/admin/api/v1/organizations/{orgId}/apps` | Bearer | `{"name": "Mobile Store", "description": "..."}` |
+| `POST` | `/admin/api/v1/organizations/{orgId}/apps` | Bearer | `{"name": "Mobile Store", "description": "..."}`. Auto-provisions default `SERVER_REST` key, `SDK_PUBLIC` key, and Web Push VAPID pair |
 | `GET` | `/admin/api/v1/apps/{appId}` | Bearer | Get app details |
 | `GET` | `/admin/api/v1/apps/{appId}/credentials` | Bearer | Returns active providers & masked metadata (never raw keys) |
 | `POST` | `/admin/api/v1/apps/{appId}/credentials` | Bearer | `{"providerType": "FCM"|"APNS"|"WEBPUSH", "rawCredential": "...", "metadata": {...}}` (Stored in AES-256-GCM vault) |
@@ -78,8 +84,9 @@
 
 | Method | Path | Auth | Headers | Payload / Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/v1/notifications` | `X-Api-Key` | `Idempotency-Key` (opt) | Dispatches notification. Payload: `{"title":"...", "body":"...", "targetType":"ALL"|"SEGMENT"|"DEVICE_IDS"|"EXTERNAL_USER_IDS", "targetPayload":{...}, "scheduledAt":"..."}` |
+| `POST` | `/api/v1/notifications` | `X-Api-Key` | `Idempotency-Key` (opt) | Dispatches notification. Payload: `{"title":"...", "body":"...", "idempotency":"...", "targetType":"ALL"|"SEGMENT"|"DEVICE_IDS"|"EXTERNAL_USER_IDS", "targetPayload":{...}, "scheduledAt":"..."}` |
 | `GET` | `/api/v1/notifications/{id}` | `X-Api-Key` | None | Get notification dispatch status and stats |
+| `POST` | `/admin/api/v1/apps/{appId}/notifications` | Bearer | `Idempotency-Key` (opt) | Create and dispatch notification. Payload: `{"appId":"...", "title":"...", "body":"...", "idempotency":"...", "priority":"HIGH"|"NORMAL", "targetType":"ALL"|"SEGMENT"|"DEVICE_IDS"|"EXTERNAL_USER_IDS", "targetPayload":{...}, "scheduledAt":"..."}` |
 | `GET` | `/admin/api/v1/apps/{appId}/notifications` | Bearer | None | Admin list notifications |
 | `DELETE` | `/admin/api/v1/apps/{appId}/notifications/{id}/cancel` | Bearer | None | Cancels scheduled campaign |
 
@@ -89,7 +96,7 @@
 
 | Method | Path | Auth | Payload / Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/sdk/v1/events` | `X-Sdk-Key` | `{"events": [{"notificationId":"...", "deviceId":"...", "eventType":"DELIVERED"|"OPENED"|"CLICKED"|"CUSTOM", "timestamp":"..."}]}` |
+| `POST` | `/sdk/v1/events` | `X-Sdk-Key` / Bearer / Public | `{"appId": "...", "events": [{"notificationId":"...", "deviceId":"...", "eventType":"DELIVERED"|"OPENED"|"CLICKED"|"CUSTOM", "timestamp":"..."}]}` |
 
 ---
 
@@ -111,3 +118,14 @@
 | **STOMP Sub** | `/topic/notifications` | Broadcast notification channel for foreground apps |
 | **STOMP Sub** | `/user/queue/notifications` | Targeted direct user push channel |
 | **STOMP Send** | `/app/presence/heartbeat` | Refreshes Redis presence TTL (120s) |
+
+---
+
+## 10. File & Static Media Storage (`/admin/api/v1/files` & `/uploads`)
+
+| Method | Path | Auth | Payload / Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/admin/api/v1/files/avatars` | Bearer | `multipart/form-data` with `file` part (JPEG, PNG, WebP <= 5MB). Strips EXIF metadata, resizes <= 512x512, saves via `StorageBackend` -> returns `{path, url, filename, size, contentType, width, height}` |
+| `DELETE` | `/admin/api/v1/files/avatars?path=/avatars/{userId}_...` | Bearer | Deletes avatar file from storage backend. Enforces user ownership prefix verification to prevent unauthorized deletion. |
+| `GET` | `/uploads/**` | None | Public static media resource handler. Serves uploaded avatars and files with immutable 1-year caching (`Cache-Control: public, max-age=31536000, immutable`), `X-Content-Type-Options: nosniff`, and restrictive `Content-Security-Policy: default-src 'none'`. |
+
