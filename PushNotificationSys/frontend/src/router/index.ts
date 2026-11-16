@@ -88,18 +88,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/ApiKeysView.vue'),
     meta: { requiresAuth: true, permission: 'apikey:read' },
   },
-  {
-    path: '/realtime',
-    name: 'DirectRealtime',
-    component: () => import('@/views/RealtimeTestView.vue'),
-    meta: { requiresAuth: true, permission: 'notification:read' },
-  },
-  {
-    path: '/web-push-test',
-    name: 'DirectWebPushTest',
-    component: () => import('@/views/WebPushTestView.vue'),
-    meta: { requiresAuth: true, permission: 'notification:create' },
-  },
+  // {
+  //   path: '/realtime',
+  //   name: 'DirectRealtime',
+  //   component: () => import('@/views/RealtimeTestView.vue'),
+  //   meta: { requiresAuth: true, permission: 'notification:read' },
+  // },
   {
     path: '/app-settings',
     name: 'DirectAppSettings',
@@ -140,18 +134,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/NotificationComposerView.vue'),
     meta: { requiresAuth: true, permission: 'notification:create' },
   },
-  {
-    path: '/apps/:appId/web-push-test',
-    name: 'WebPushTestBench',
-    component: () => import('@/views/WebPushTestView.vue'),
-    meta: { requiresAuth: true, permission: 'notification:create' },
-  },
-  {
-    path: '/apps/:appId/realtime',
-    name: 'RealtimeGateway',
-    component: () => import('@/views/RealtimeTestView.vue'),
-    meta: { requiresAuth: true, permission: 'notification:read' },
-  },
+  // {
+  //   path: '/apps/:appId/realtime',
+  //   name: 'RealtimeGateway',
+  //   component: () => import('@/views/RealtimeTestView.vue'),
+  //   meta: { requiresAuth: true, permission: 'notification:read' },
+  // },
   {
     path: '/apps/:appId/segments',
     name: 'SegmentList',

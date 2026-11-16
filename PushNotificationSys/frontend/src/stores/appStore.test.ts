@@ -47,7 +47,7 @@ describe('useAppStore App Context & Deduplication', () => {
       },
     ]
 
-    const listSpy = vi.spyOn(appsApi, 'list').mockImplementation(async (_orgId: string) => {
+    const listSpy = vi.spyOn(appsApi, 'list').mockImplementation(async (_orgId?: string) => {
       // Simulate network delay
       await new Promise((r) => setTimeout(r, 50))
       return mockApps
@@ -71,5 +71,31 @@ describe('useAppStore App Context & Deduplication', () => {
     const resCached = await appStore.loadApps('org-test-123')
     expect(listSpy).toHaveBeenCalledTimes(1)
     expect(resCached).toEqual(mockApps)
+  })
+
+  it('replaces stale inaccessible currentAppId with first accessible app or null if empty', async () => {
+    const authStore = useAuthStore()
+    const appStore = useAppStore()
+    authStore.setCurrentOrg('org-1')
+    authStore.setCurrentApp('unassigned-app-id')
+
+    const crmApp: AppSummary = {
+      id: 'crm-app-id',
+      organizationId: 'org-1',
+      name: 'CRM',
+      configuredProviders: ['FCM'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+
+    const listSpy = vi.spyOn(appsApi, 'list').mockResolvedValueOnce([crmApp]).mockResolvedValueOnce([])
+
+    await appStore.loadApps('org-1')
+    expect(authStore.currentAppId).toBe('crm-app-id')
+
+    await appStore.loadApps('org-1', true)
+    expect(authStore.currentAppId).toBe(null)
+
+    listSpy.mockRestore()
   })
 })

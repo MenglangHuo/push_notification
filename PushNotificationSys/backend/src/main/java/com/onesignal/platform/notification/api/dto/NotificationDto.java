@@ -20,11 +20,24 @@ public class NotificationDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CreateNotificationRequest {
+        private UUID appId;
+
         @NotBlank(message = "Title is required")
         private String title;
 
         @NotBlank(message = "Body message is required")
         private String body;
+
+        @com.fasterxml.jackson.annotation.JsonAlias({"idempotency", "idempotency_key"})
+        private String idempotencyKey;
+
+        public String getIdempotency() {
+            return idempotencyKey;
+        }
+
+        public void setIdempotency(String idempotency) {
+            this.idempotencyKey = idempotency;
+        }
 
         private String imageUrl;
         private String deepLink;
@@ -54,6 +67,11 @@ public class NotificationDto {
         private Map<String, Object> targetPayload;
         private NotificationStatus status;
         private String idempotencyKey;
+
+        @com.fasterxml.jackson.annotation.JsonProperty("idempotency")
+        public String getIdempotency() {
+            return idempotencyKey;
+        }
         private Instant scheduledAt;
         private com.onesignal.platform.notification.domain.ScheduleType scheduleType;
         private String userTargetTime;

@@ -1,7 +1,9 @@
 package com.onesignal.platform.analytics.api;
 
 import com.onesignal.platform.analytics.api.dto.AnalyticsDto;
+import com.onesignal.platform.analytics.api.dto.DashboardDto;
 import com.onesignal.platform.analytics.application.AnalyticsService;
+import com.onesignal.platform.analytics.application.DashboardService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,16 @@ import java.util.UUID;
 public class AnalyticsAdminController {
 
     private final AnalyticsService analyticsService;
+    private final DashboardService dashboardService;
+
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasPermission(#appId, 'app', 'analytics:read')")
+    public ResponseEntity<DashboardDto.DashboardSummaryResponse> getDashboardSummary(
+            @PathVariable UUID appId,
+            @RequestParam(defaultValue = "7d") String range
+    ) {
+        return ResponseEntity.ok(dashboardService.getDashboardSummary(appId, range));
+    }
 
     @GetMapping("/overview")
     @PreAuthorize("hasPermission(#appId, 'app', 'analytics:read')")

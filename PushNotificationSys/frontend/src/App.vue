@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import Topbar from '@/components/layout/Topbar.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
@@ -9,6 +10,7 @@ import SplashScreen from '@/components/common/SplashScreen.vue'
 import { useSplashStore } from '@/stores/splashStore'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const splashStore = useSplashStore()
 const isMobileSidebarOpen = ref<boolean>(false)
 
@@ -78,7 +80,7 @@ function closeMobileSidebar() {
 
         <!-- Main View Container: Scrolls all page data smoothly -->
         <main class="flex-1 overflow-y-auto p-4 md:p-6 min-h-0 bg-slate-50/60 dark:bg-slate-950/40">
-          <router-view />
+          <router-view :key="`${route.fullPath}:${authStore.currentOrgId}:${authStore.currentAppId}`" />
         </main>
 
         <!-- App Footer Layout -->

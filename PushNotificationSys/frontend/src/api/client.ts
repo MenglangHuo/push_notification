@@ -29,19 +29,49 @@ export function setupAxiosInterceptors(
 ) {
   // Request Interceptor
   apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const url = config.url || ''
+    const isPublicAuthRoute =
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/mfa/verify') ||
+      url.includes('/invitations/accept')
+
+    // 1. Only attach Authorization Bearer token on authenticated endpoints
     const token = getAccessToken()
-    if (token) {
+    if (token && !isPublicAuthRoute) {
       config.headers.set('Authorization', `Bearer ${token}`)
+    } else {
+      config.headers.delete('Authorization')
     }
 
-    const orgId = getOrgId()
-    if (orgId) {
-      config.headers.set('X-Org-Id', orgId)
+    // 2. Prevent sending API/SDK keys to admin endpoints (security isolation)
+    config.headers.delete('X-Sdk-Key')
+    config.headers.delete('X-Api-Key')
+
+    // 3. Prevent leaking org/app context into public auth routes
+    if (isPublicAuthRoute) {
+      config.headers.delete('X-Org-Id')
+      config.headers.delete('X-App-Id')
+      return config
     }
 
-    const appId = getAppId()
-    if (appId) {
-      config.headers.set('X-App-Id', appId)
+    // 4. Eliminate redundant X-App-Id and X-Org-Id headers when the URI path
+    // already specifies the resource (/apps/{appId} or /organizations/{orgId}).
+    // This adheres to DDD tenant isolation and prevents header-path desynchronization.
+    const hasAppInPath = /\/apps\/[a-fA-F0-9\\-]+/.test(url)
+    const hasOrgInPath = /\/organizations\/[a-fA-F0-9\\-]+/.test(url)
+
+    if (hasAppInPath || hasOrgInPath) {
+      config.headers.delete('X-App-Id')
+      config.headers.delete('X-Org-Id')
+    } else {
+      config.headers.delete('X-App-Id')
+      const orgId = getOrgId()
+      if (orgId) {
+        config.headers.set('X-Org-Id', orgId)
+      } else {
+        config.headers.delete('X-Org-Id')
+      }
     }
 
     return config

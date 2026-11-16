@@ -4,6 +4,7 @@ import com.onesignal.platform.audit.application.AuditLogService;
 import com.onesignal.platform.common.exception.UnauthorizedException;
 import com.onesignal.platform.common.security.Argon2PasswordService;
 import com.onesignal.platform.common.security.JwtTokenProvider;
+import com.onesignal.platform.common.storage.AvatarUrlResolver;
 import com.onesignal.platform.iam.api.dto.AuthDto;
 import com.onesignal.platform.iam.domain.Organization;
 import com.onesignal.platform.iam.domain.User;
@@ -67,13 +68,18 @@ class AuthServiceTest {
     private AuditLogService auditLogService;
 
     @Mock
+    private UserProfileService userProfileService;
+
+    @Mock
     private HttpServletResponse httpServletResponse;
 
+    private AvatarUrlResolver avatarUrlResolver;
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        avatarUrlResolver = new AvatarUrlResolver("http://localhost:8080", "/uploads", "");
 
         authService = new AuthService(
                 userRepository,
@@ -84,7 +90,9 @@ class AuthServiceTest {
                 totpService,
                 cryptoVaultService,
                 redisTemplate,
-                auditLogService
+                auditLogService,
+                avatarUrlResolver,
+                userProfileService
         );
 
         ReflectionTestUtils.setField(authService, "cookieName", "push_refresh_token");

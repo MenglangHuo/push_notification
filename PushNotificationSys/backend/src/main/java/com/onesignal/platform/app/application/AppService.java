@@ -1,6 +1,10 @@
 package com.onesignal.platform.app.application;
 
+import com.onesignal.platform.apikey.api.dto.ApiKeyDto;
+import com.onesignal.platform.apikey.application.ApiKeyService;
+import com.onesignal.platform.apikey.domain.KeyType;
 import com.onesignal.platform.app.api.dto.AppDto;
+import com.onesignal.platform.app.api.dto.CredentialDto;
 import com.onesignal.platform.app.domain.App;
 import com.onesignal.platform.app.domain.ProviderCredential;
 import com.onesignal.platform.app.domain.ProviderType;
@@ -10,6 +14,7 @@ import com.onesignal.platform.audit.application.AuditLogService;
 import com.onesignal.platform.common.exception.ConflictException;
 import com.onesignal.platform.common.exception.ResourceNotFoundException;
 import com.onesignal.platform.common.security.TenantContextHolder;
+import com.onesignal.platform.iam.application.PermissionCacheService;
 import com.onesignal.platform.iam.domain.Organization;
 import com.onesignal.platform.iam.infrastructure.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +34,27 @@ public class AppService {
     private final OrganizationRepository organizationRepository;
     private final ProviderCredentialRepository credentialRepository;
     private final AuditLogService auditLogService;
+    private final ApiKeyService apiKeyService;
+    private final CredentialService credentialService;
+    private final PermissionCacheService permissionCacheService;
+
+    @Transactional(readOnly = true)
+    public List<AppDto.AppResponse> listAccessibleApps(UUID userId, UUID orgId) {
+        if (userId == null || orgId == null) {
+            return List.of();
+        }
+
+        // If user is superadmin or has org-wide app:read permission, return all apps in org
+        if (TenantContextHolder.isSuperAdmin() ||
+                permissionCacheService.getPermissions(userId, orgId, null).contains("app:read")) {
+            return listAppsForOrg(orgId);
+        }
+
+        // Otherwise, return only apps explicitly assigned to this user in this org
+        return appRepository.findAppsExplicitlyAssignedToUser(userId, orgId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
 
     @Transactional(readOnly = true)
     public List<AppDto.AppResponse> listAppsForOrg(UUID orgId) {
@@ -61,13 +87,43 @@ public class AppService {
 
         App saved = appRepository.save(app);
 
+        // 1. Auto-provision default Server REST API Key
+        ApiKeyDto.CreateApiKeyRequest serverKeyReq = new ApiKeyDto.CreateApiKeyRequest();
+        serverKeyReq.setName("Default Server REST Key");
+        serverKeyReq.setKeyType(KeyType.SERVER_REST);
+        serverKeyReq.setScopes(List.of(
+                "notification:create",
+                "notification:read",
+                "device:read",
+                "segment:read",
+                "log:read"
+        ));
+        ApiKeyDto.ApiKeyCreatedResponse serverKey = apiKeyService.createKey(saved.getId(), serverKeyReq);
+
+        // 2. Auto-provision default Client SDK Key (for mobile / web clients)
+        ApiKeyDto.CreateApiKeyRequest clientKeyReq = new ApiKeyDto.CreateApiKeyRequest();
+        clientKeyReq.setName("Default Client SDK Key");
+        clientKeyReq.setKeyType(KeyType.SDK_PUBLIC);
+        clientKeyReq.setScopes(List.of(
+                "device:create",
+                "device:read"
+        ));
+        ApiKeyDto.ApiKeyCreatedResponse clientKey = apiKeyService.createKey(saved.getId(), clientKeyReq);
+
+        // 3. Auto-provision Web Push VAPID keypair
+        CredentialDto.GenerateVapidResponse vapid = credentialService.generateVapid(saved.getId());
+
         auditLogService.record(
                 orgId, saved.getId(), TenantContextHolder.getUserId(), "USER",
                 "APP_CREATED", "app", saved.getId().toString(),
                 null, Map.of("name", saved.getName()), null, null
         );
 
-        return toResponse(saved);
+        AppDto.AppResponse response = toResponse(saved);
+        response.setDefaultServerKey(serverKey);
+        response.setDefaultClientSdkKey(clientKey);
+        response.setVapidPublicKey(vapid.getPublicKey());
+        return response;
     }
 
     @Transactional

@@ -31,9 +31,15 @@ public class NotificationServerApiController {
             @Valid @RequestBody NotificationDto.CreateNotificationRequest request
     ) {
         UUID appId = resolveAppId();
+        if (request.getAppId() == null) {
+            request.setAppId(appId);
+        }
+        String effectiveIdempotencyKey = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? idempotencyKey
+                : request.getIdempotencyKey();
         log.info("Server API creating notification for app: {}", appId);
         NotificationDto.NotificationResponse response =
-                notificationService.createAndDispatch(appId, null, request, idempotencyKey);
+                notificationService.createAndDispatch(appId, null, request, effectiveIdempotencyKey);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 

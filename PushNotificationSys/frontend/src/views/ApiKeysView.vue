@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -153,6 +153,10 @@ function toggleScope(scope: string) {
     selectedScopes.value.push(scope)
   }
 }
+
+watch(appId, () => {
+  loadKeys()
+})
 
 onMounted(() => {
   loadKeys()

@@ -42,4 +42,7 @@ public interface ClientEventRepository extends JpaRepository<ClientEvent, UUID> 
             @Param("eventType") ClientEventType eventType,
             Pageable pageable
     );
+
+    @Query("SELECT COUNT(e) FROM ClientEvent e WHERE e.app.id = :appId AND e.eventType = :eventType AND e.createdAt >= :since")
+    long countByAppIdAndEventTypeAfter(@Param("appId") UUID appId, @Param("eventType") ClientEventType eventType, @Param("since") Instant since);
 }

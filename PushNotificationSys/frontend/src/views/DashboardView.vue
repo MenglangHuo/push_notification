@@ -8,17 +8,30 @@ import { useThemeStore } from '@/stores/themeStore'
 import {
   getAnalyticsOverview,
   getAnalyticsTimeSeries,
+  getDashboardSummary,
   type AnalyticsOverview,
   type TimeSeriesResponse,
+  type DashboardSummary,
 } from '@/api/analytics'
 import MetricCard from '@/components/dashboard/MetricCard.vue'
 import StatusDonut from '@/components/dashboard/StatusDonut.vue'
+import AnimatedCounter from '@/components/dashboard/AnimatedCounter.vue'
+import FunnelChart from '@/components/dashboard/FunnelChart.vue'
+import HeatmapChart from '@/components/dashboard/HeatmapChart.vue'
+// import CampaignLeaderboard from '@/components/dashboard/CampaignLeaderboard.vue'
+import GrowthChart from '@/components/dashboard/GrowthChart.vue'
+import FailureBreakdown from '@/components/dashboard/FailureBreakdown.vue'
+// import ProgressRing from '@/components/dashboard/ProgressRing.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
 import {
   Activity,
   AlertCircle,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
   BarChart2,
   BellRing,
+  CalendarDays,
   CheckCircle2,
   Filter,
   RefreshCw,
@@ -26,6 +39,10 @@ import {
   Send,
   Smartphone,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+  Users,
   Zap,
 } from 'lucide-vue-next'
 
@@ -40,6 +57,7 @@ const isLoading = ref<boolean>(false)
 const error = ref<string | null>(null)
 const lastUpdated = ref<Date>(new Date())
 
+const dashboard = ref<DashboardSummary | null>(null)
 const overview = ref<AnalyticsOverview | null>(null)
 const timeSeries = ref<TimeSeriesResponse | null>(null)
 
@@ -58,18 +76,17 @@ async function loadData() {
   if (!currentAppId.value) {
     overview.value = null
     timeSeries.value = null
+    dashboard.value = null
     return
   }
 
   isLoading.value = true
   error.value = null
   try {
-    const [ov, ts] = await Promise.all([
-      getAnalyticsOverview(currentAppId.value, selectedRange.value),
-      getAnalyticsTimeSeries(currentAppId.value, selectedRange.value),
-    ])
-    overview.value = ov
-    timeSeries.value = ts
+    const data = await getDashboardSummary(currentAppId.value, selectedRange.value)
+    dashboard.value = data
+    overview.value = data.overview
+    timeSeries.value = data.timeSeries
     lastUpdated.value = new Date()
     await nextTick()
     renderCharts()
@@ -194,7 +211,13 @@ function handleResize() {
   timeSeriesChartInstance?.resize()
 }
 
-watch([currentAppId, selectedRange], () => {
+let isDashboardMounted = false
+
+watch([() => authStore.currentOrgId, currentAppId, selectedRange], async () => {
+  if (!isDashboardMounted) return
+  if (authStore.currentOrgId) {
+    await appStore.loadApps(authStore.currentOrgId)
+  }
   loadData()
 })
 
@@ -203,9 +226,11 @@ watch(() => themeStore.isDark, () => {
 })
 
 onMounted(async () => {
-  if (authStore.currentOrgId && !authStore.currentAppId) {
+  if (authStore.currentOrgId) {
     await appStore.loadApps(authStore.currentOrgId)
   }
+  await nextTick()
+  isDashboardMounted = true
   await loadData()
   window.addEventListener('resize', handleResize)
 })
@@ -334,7 +359,7 @@ onUnmounted(() => {
         <!-- Total Dispatched -->
         <MetricCard
           title="Dispatched Volume"
-          :value="overview?.totalSent?.toLocaleString() ?? 0"
+          :value="overview?.totalSent ?? 0"
           subtitle="Total messages routed"
           :progressPercent="Math.round(overview?.deliveryRate ?? 0)"
           :trend="{
@@ -344,7 +369,9 @@ onUnmounted(() => {
           :icon="Send"
           variant="indigo"
           :loading="isLoading"
-        />
+        >
+          <AnimatedCounter :value="overview?.totalSent ?? 0" />
+        </MetricCard>
 
         <!-- Delivery Success -->
         <MetricCard
@@ -359,7 +386,9 @@ onUnmounted(() => {
           :icon="CheckCircle2"
           variant="emerald"
           :loading="isLoading"
-        />
+        >
+          <AnimatedCounter :value="overview?.deliveryRate ?? 100" suffix="%" />
+        </MetricCard>
 
         <!-- Open Engagement -->
         <MetricCard
@@ -374,7 +403,9 @@ onUnmounted(() => {
           :icon="Sparkles"
           variant="amber"
           :loading="isLoading"
-        />
+        >
+          <AnimatedCounter :value="overview?.openRate ?? 0" suffix="%" />
+        </MetricCard>
 
         <!-- Dispatch Latency -->
         <MetricCard
@@ -389,12 +420,14 @@ onUnmounted(() => {
           :icon="Zap"
           variant="sky"
           :loading="isLoading"
-        />
+        >
+          <AnimatedCounter :value="overview?.avgLatencyMs ?? 0" suffix="ms" />
+        </MetricCard>
 
         <!-- Active Audience Devices -->
         <MetricCard
           title="Audience Reach"
-          :value="overview?.activeDevices?.toLocaleString() ?? 0"
+          :value="overview?.activeDevices ?? 0"
           subtitle="Active registered tokens"
           :progressPercent="100"
           :trend="{
@@ -404,10 +437,21 @@ onUnmounted(() => {
           :icon="Smartphone"
           variant="slate"
           :loading="isLoading"
-        />
+        >
+          <AnimatedCounter :value="overview?.activeDevices ?? 0" />
+        </MetricCard>
       </div>
 
-      <!-- Middle Row: Interactive Trend Chart & Platform Donut Chart -->
+      <!-- 1. Conversion Funnel (Immediate Pipeline Insight) -->
+      <FunnelChart
+        :sent="dashboard?.funnel?.sent ?? 0"
+        :delivered="dashboard?.funnel?.delivered ?? 0"
+        :opened="dashboard?.funnel?.opened ?? 0"
+        :clicked="dashboard?.funnel?.clicked ?? 0"
+        :loading="isLoading"
+      />
+
+      <!-- 2. Primary Dispatch & Engagement Trend + Platform Distribution -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
         <!-- Influx Trend Chart (2 cols) -->
         <div
@@ -439,7 +483,215 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Provider Gateway Performance & Campaign Shortcuts -->
+      <!-- 3. Audience Growth & Period Performance Velocity -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5 items-stretch">
+        <!-- Growth Chart (2 cols) -->
+        <div class="lg:col-span-2 flex flex-col">
+          <GrowthChart
+            class="h-full flex-1"
+            :points="dashboard?.growth?.points ?? []"
+            :totalNew="dashboard?.growth?.totalNew ?? 0"
+            :totalChurned="dashboard?.growth?.totalChurned ?? 0"
+            :netGrowth="dashboard?.growth?.netGrowth ?? 0"
+            :loading="isLoading"
+          />
+        </div>
+
+        <!-- Period Comparison Card (1 col) -->
+        <div
+          class="lg:col-span-1 h-full bg-white dark:bg-slate-900/90 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl flex flex-col justify-between transition-colors"
+        >
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <TrendingUp class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Period Comparison</span>
+              </h3>
+              <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+                vs prev {{ selectedRange }}
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Performance differential relative to previous cycle
+            </p>
+
+            <div class="space-y-2.5">
+              <!-- Sent Change -->
+              <div
+                class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    :class="
+                      (dashboard?.periodComparison?.sentChange ?? 0) >= 0
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    "
+                  >
+                    <component
+                      :is="(dashboard?.periodComparison?.sentChange ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight"
+                      class="w-4 h-4"
+                    />
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Dispatched Volume
+                    </div>
+                    <div class="text-[10px] text-slate-400">Total routed traffic</div>
+                  </div>
+                </div>
+                <div
+                  class="font-mono text-xs font-bold"
+                  :class="
+                    (dashboard?.periodComparison?.sentChange ?? 0) >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  "
+                >
+                  {{ (dashboard?.periodComparison?.sentChange ?? 0) >= 0 ? '+' : '' }}{{ (dashboard?.periodComparison?.sentChange ?? 0).toFixed(1) }}%
+                </div>
+              </div>
+
+              <!-- Delivered Change -->
+              <div
+                class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    :class="
+                      (dashboard?.periodComparison?.deliveredChange ?? 0) >= 0
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    "
+                  >
+                    <component
+                      :is="(dashboard?.periodComparison?.deliveredChange ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight"
+                      class="w-4 h-4"
+                    />
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Delivered Receipts
+                    </div>
+                    <div class="text-[10px] text-slate-400">Successful device receipts</div>
+                  </div>
+                </div>
+                <div
+                  class="font-mono text-xs font-bold"
+                  :class="
+                    (dashboard?.periodComparison?.deliveredChange ?? 0) >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  "
+                >
+                  {{ (dashboard?.periodComparison?.deliveredChange ?? 0) >= 0 ? '+' : '' }}{{ (dashboard?.periodComparison?.deliveredChange ?? 0).toFixed(1) }}%
+                </div>
+              </div>
+
+              <!-- Open Rate Change -->
+              <div
+                class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    :class="
+                      (dashboard?.periodComparison?.openRateChange ?? 0) >= 0
+                        ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                        : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    "
+                  >
+                    <component
+                      :is="(dashboard?.periodComparison?.openRateChange ?? 0) >= 0 ? ArrowUpRight : ArrowDownRight"
+                      class="w-4 h-4"
+                    />
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Open Rate (CTR)
+                    </div>
+                    <div class="text-[10px] text-slate-400">Interaction conversion</div>
+                  </div>
+                </div>
+                <div
+                  class="font-mono text-xs font-bold"
+                  :class="
+                    (dashboard?.periodComparison?.openRateChange ?? 0) >= 0
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  "
+                >
+                  {{ (dashboard?.periodComparison?.openRateChange ?? 0) >= 0 ? '+' : '' }}{{ (dashboard?.periodComparison?.openRateChange ?? 0).toFixed(1) }}%
+                </div>
+              </div>
+
+              <!-- Latency Change (lower is better) -->
+              <div
+                class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    :class="
+                      (dashboard?.periodComparison?.latencyChange ?? 0) <= 0
+                        ? 'bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                        : 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    "
+                  >
+                    <component
+                      :is="(dashboard?.periodComparison?.latencyChange ?? 0) <= 0 ? ArrowDownRight : ArrowUpRight"
+                      class="w-4 h-4"
+                    />
+                  </div>
+                  <div>
+                    <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Avg Latency
+                    </div>
+                    <div class="text-[10px] text-slate-400">Roundtrip turnaround</div>
+                  </div>
+                </div>
+                <div
+                  class="font-mono text-xs font-bold"
+                  :class="
+                    (dashboard?.periodComparison?.latencyChange ?? 0) <= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  "
+                >
+                  {{ (dashboard?.periodComparison?.latencyChange ?? 0) > 0 ? '+' : '' }}{{ (dashboard?.periodComparison?.latencyChange ?? 0).toFixed(0) }}ms
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>Cycle shift telemetry</span>
+            <router-link
+              :to="currentAppId ? `/apps/${currentAppId}/logs` : '/logs'"
+              class="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 flex items-center gap-1 cursor-pointer"
+            >
+              <span>Audit trail</span>
+              <span>&rarr;</span>
+            </router-link>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Campaign Scheduling Intelligence (Optimal Blast Times) -->
+      <!-- <div class="grid grid-cols-1 gap-3.5">
+        <HeatmapChart
+          :data="dashboard?.heatmap ?? []"
+          :loading="isLoading"
+        /> -->
+        <!-- <CampaignLeaderboard
+          :campaigns="dashboard?.topCampaigns ?? []"
+          :loading="isLoading"
+        /> -->
+      <!-- </div> -->
+
+      <!-- 5. Infrastructure Reliability: Downstream Gateways & Failure Diagnostics -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5">
         <!-- Provider Gateway Health Breakdown (2 cols) -->
         <div
@@ -527,48 +779,12 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Quick Action Shortcuts (1 col) -->
-        <div
-          class="lg:col-span-1 bg-white dark:bg-slate-900/90 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl flex flex-col justify-between transition-colors"
-        >
-          <div>
-            <h3 class="text-sm font-semibold text-slate-900 dark:text-white mb-1">
-              Campaign Shortcuts
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
-              Quick access to dispatch composer and registry tools
-            </p>
-
-            <div class="space-y-2.5">
-              <router-link
-                :to="currentAppId ? `/apps/${currentAppId}/notifications/new` : '/notifications/new'"
-                class="w-full p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition flex items-center gap-2.5 shadow-sm shadow-indigo-500/20 cursor-pointer"
-              >
-                <BellRing class="w-4 h-4 shrink-0" />
-                <span class="truncate">Compose Push Notification</span>
-              </router-link>
-
-              <router-link
-                :to="currentAppId ? `/apps/${currentAppId}/segments/new` : '/segments/new'"
-                class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition flex items-center gap-2.5 cursor-pointer"
-              >
-                <Filter class="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span class="truncate">Build Audience Segment</span>
-              </router-link>
-
-              <router-link
-                :to="currentAppId ? `/apps/${currentAppId}/logs` : '/logs'"
-                class="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-semibold text-xs transition flex items-center gap-2.5 cursor-pointer"
-              >
-                <ScrollText class="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
-                <span class="truncate">View Delivery Audit Logs</span>
-              </router-link>
-            </div>
-          </div>
-
-          <div class="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
-            Tip: Ingest client events from your mobile app via <code class="font-mono text-slate-700 dark:text-slate-300">POST /sdk/v1/events</code> to track conversions live.
-          </div>
+        <!-- Failure Breakdown Diagnostic (1 col) -->
+        <div class="lg:col-span-1">
+          <FailureBreakdown
+            :categories="dashboard?.failureBreakdown ?? []"
+            :loading="isLoading"
+          />
         </div>
       </div>
     </template>

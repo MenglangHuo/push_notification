@@ -60,4 +60,32 @@ class SegmentSpecificationBuilderTest {
         var spec = builder.buildSpecification(UUID.randomUUID(), null);
         assertThat(spec).isNotNull();
     }
+
+    @Test
+    @DisplayName("Should build specification with explicit is_active rule without conflict")
+    void testExplicitActiveHandling() {
+        Map<String, Object> raw = Map.of(
+                "conjunction", "AND",
+                "rules", List.of(
+                        Map.of("field", "is_active", "op", "EQ", "value", "false"),
+                        Map.of("field", "platform", "op", "EQ", "value", "ANDROID")
+                )
+        );
+        var spec = builder.buildSpecification(UUID.randomUUID(), raw);
+        assertThat(spec).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Should safely parse case-insensitive platform and tags")
+    void testCaseInsensitiveAndSafePlatform() {
+        Map<String, Object> raw = Map.of(
+                "conjunction", "OR",
+                "rules", List.of(
+                        Map.of("field", "tag", "tagKey", "TIER", "op", "EQ", "value", "vip"),
+                        Map.of("field", "platform", "op", "EQ", "value", "Android")
+                )
+        );
+        var spec = builder.buildSpecification(UUID.randomUUID(), raw);
+        assertThat(spec).isNotNull();
+    }
 }

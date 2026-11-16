@@ -25,12 +25,13 @@ public class SegmentSpecificationBuilder {
 
     public Specification<Device> buildSpecification(UUID appId, Object rawAst) {
         FilterAst ast = parseAst(rawAst);
+        boolean hasExplicitActive = hasExplicitActiveRule(ast);
         return (root, query, cb) -> {
-            // Base condition: device belongs to app and is active
-            Predicate basePredicate = cb.and(
-                    cb.equal(root.get("app").get("id"), appId),
-                    cb.isTrue(root.get("active"))
-            );
+            // Base condition: device belongs to app (and active if not explicitly specified)
+            Predicate appPredicate = cb.equal(root.get("app").get("id"), appId);
+            Predicate basePredicate = hasExplicitActive
+                    ? appPredicate
+                    : cb.and(appPredicate, cb.isTrue(root.get("active")));
 
             if (ast == null || ((ast.getRules() == null || ast.getRules().isEmpty())
                     && (ast.getGroups() == null || ast.getGroups().isEmpty()))) {
@@ -43,6 +44,25 @@ public class SegmentSpecificationBuilder {
             }
             return basePredicate;
         };
+    }
+
+    private boolean hasExplicitActiveRule(FilterAst node) {
+        if (node == null) return false;
+        if (node.getRules() != null) {
+            for (FilterRule r : node.getRules()) {
+                if ("is_active".equalsIgnoreCase(r.getField())) {
+                    return true;
+                }
+            }
+        }
+        if (node.getGroups() != null) {
+            for (FilterAst child : node.getGroups()) {
+                if (hasExplicitActiveRule(child)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public FilterAst parseAst(Object rawAst) {
@@ -151,7 +171,7 @@ public class SegmentSpecificationBuilder {
         Root<DeviceTag> tagRoot = subquery.from(DeviceTag.class);
         subquery.select(tagRoot.get("device").get("id"));
 
-        Predicate keyPredicate = cb.equal(tagRoot.get("tagKey"), tagKey.trim());
+        Predicate keyPredicate = cb.equal(cb.lower(tagRoot.get("tagKey")), tagKey.trim().toLowerCase());
 
         switch (op) {
             case "EXISTS" -> {
@@ -164,7 +184,7 @@ public class SegmentSpecificationBuilder {
             }
             case "NEQ" -> {
                 if (val == null) return null;
-                Predicate valPredicate = cb.equal(tagRoot.get("tagValue"), val.toString());
+                Predicate valPredicate = cb.equal(cb.lower(tagRoot.get("tagValue")), val.toString().trim().toLowerCase());
                 subquery.where(cb.and(keyPredicate, valPredicate));
                 return cb.not(root.get("id").in(subquery));
             }
@@ -172,27 +192,27 @@ public class SegmentSpecificationBuilder {
                 if (val == null) return null;
                 Predicate valPredicate = cb.like(
                         cb.lower(tagRoot.get("tagValue")),
-                        "%" + val.toString().toLowerCase() + "%"
+                        "%" + val.toString().trim().toLowerCase() + "%"
                 );
                 subquery.where(cb.and(keyPredicate, valPredicate));
                 return root.get("id").in(subquery);
             }
             case "IN" -> {
-                List<String> inVals = extractList(val);
+                List<String> inVals = extractList(val).stream().map(s -> s.trim().toLowerCase()).toList();
                 if (inVals.isEmpty()) return null;
-                Predicate valPredicate = tagRoot.get("tagValue").in(inVals);
+                Predicate valPredicate = cb.lower(tagRoot.get("tagValue")).in(inVals);
                 subquery.where(cb.and(keyPredicate, valPredicate));
                 return root.get("id").in(subquery);
             }
             case "EQ" -> {
                 if (val == null) return null;
-                Predicate valPredicate = cb.equal(tagRoot.get("tagValue"), val.toString());
+                Predicate valPredicate = cb.equal(cb.lower(tagRoot.get("tagValue")), val.toString().trim().toLowerCase());
                 subquery.where(cb.and(keyPredicate, valPredicate));
                 return root.get("id").in(subquery);
             }
             default -> {
                 if (val == null) return null;
-                Predicate valPredicate = cb.equal(tagRoot.get("tagValue"), val.toString());
+                Predicate valPredicate = cb.equal(cb.lower(tagRoot.get("tagValue")), val.toString().trim().toLowerCase());
                 subquery.where(cb.and(keyPredicate, valPredicate));
                 return root.get("id").in(subquery);
             }
@@ -205,7 +225,7 @@ public class SegmentSpecificationBuilder {
             List<DevicePlatform> platforms = strList.stream()
                     .map(s -> {
                         try {
-                            return DevicePlatform.valueOf(s.toUpperCase());
+                            return DevicePlatform.valueOf(s.trim().toUpperCase());
                         } catch (Exception e) {
                             return null;
                         }
@@ -215,11 +235,19 @@ public class SegmentSpecificationBuilder {
             if (platforms.isEmpty()) return null;
             return root.get("platform").in(platforms);
         } else if ("NEQ".equals(op) && val != null) {
-            DevicePlatform p = DevicePlatform.valueOf(val.toString().toUpperCase());
-            return cb.notEqual(root.get("platform"), p);
+            try {
+                DevicePlatform p = DevicePlatform.valueOf(val.toString().trim().toUpperCase());
+                return cb.notEqual(root.get("platform"), p);
+            } catch (Exception e) {
+                return null;
+            }
         } else if (val != null) {
-            DevicePlatform p = DevicePlatform.valueOf(val.toString().toUpperCase());
-            return cb.equal(root.get("platform"), p);
+            try {
+                DevicePlatform p = DevicePlatform.valueOf(val.toString().trim().toUpperCase());
+                return cb.equal(root.get("platform"), p);
+            } catch (Exception e) {
+                return null;
+            }
         }
         return null;
     }

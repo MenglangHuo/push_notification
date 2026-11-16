@@ -44,12 +44,14 @@ export const useAppStore = defineStore('app', () => {
         apps.value = data
         lastLoadedOrgId = targetOrgId
 
-        // If no app selected or selected app not in this org, pick first app
+        // Ensure selected app is valid & accessible in this org, otherwise pick first accessible app or clear
         if (data && data.length > 0) {
           const exists = data.some((a) => a.id === authStore.currentAppId)
           if (!authStore.currentAppId || !exists) {
             authStore.setCurrentApp(data[0].id)
           }
+        } else {
+          authStore.setCurrentApp(null)
         }
         return data
       } catch (e) {

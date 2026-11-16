@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { devicesApi, type DeviceSummary, type DeviceStats } from '@/api/devices'
+import { appsApi, type AppSummary } from '@/api/apps'
 import { notificationsApi } from '@/api/notifications'
 import MetricCard from '@/components/dashboard/MetricCard.vue'
 import BaseButton from '@/components/common/BaseButton.vue'
@@ -17,6 +18,7 @@ import {
   CheckCircle2,
   Copy,
   Globe,
+  Layers,
   Plus,
   Radio,
   RefreshCw,
@@ -35,6 +37,55 @@ const authStore = useAuthStore()
 const toastStore = useToastStore()
 
 const appId = computed(() => (route.params.appId as string) || authStore.currentAppId || '')
+const selectedAppId = ref<string>(appId.value)
+
+// Platform filter state: ALL, ANDROID, IOS, WEB
+const selectedPlatform = ref<'ALL' | 'ANDROID' | 'IOS' | 'WEB'>('ALL')
+
+// Available Apps in the organization
+const availableApps = ref<AppSummary[]>([])
+const appSelectOptions = computed<SelectOption[]>(() => {
+  return availableApps.value.map((a) => ({
+    label: a.name,
+    value: a.id,
+  }))
+})
+
+function setPlatformFilter(platform: 'ALL' | 'ANDROID' | 'IOS' | 'WEB') {
+  selectedPlatform.value = platform
+}
+
+function togglePlatformFilter(platform: 'ANDROID' | 'IOS' | 'WEB') {
+  if (selectedPlatform.value === platform) {
+    selectedPlatform.value = 'ALL'
+  } else {
+    selectedPlatform.value = platform
+  }
+}
+
+function resetAllFilters() {
+  selectedPlatform.value = 'ALL'
+  statusFilter.value = 'ALL'
+  searchQuery.value = ''
+}
+
+async function loadApps() {
+  if (!authStore.currentOrgId) return
+  try {
+    const list = await appsApi.list(authStore.currentOrgId)
+    availableApps.value = list
+    const isValidSelection = list.some((a) => a.id === selectedAppId.value)
+    if ((!selectedAppId.value || !isValidSelection) && list.length > 0) {
+      selectedAppId.value = list[0].id
+      authStore.setCurrentApp(list[0].id)
+    } else if (list.length === 0) {
+      selectedAppId.value = ''
+      authStore.setCurrentApp(null)
+    }
+  } catch (err) {
+    console.error('Failed to load apps:', err)
+  }
+}
 
 const devices = ref<DeviceSummary[]>([])
 const stats = ref<DeviceStats | null>(null)
@@ -183,16 +234,25 @@ async function handleQuickPushSubmit() {
   if (!quickPushDevice.value || !appId.value) return
   isQuickPushing.value = true
   try {
+    const idempotency =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+
     await notificationsApi.create(appId.value, {
+      appId: appId.value,
       title: quickPushTitle.value,
       body: quickPushBody.value,
+      idempotency,
+      idempotencyKey: idempotency,
       priority: quickPushPriority.value,
       deepLink: quickPushDeepLink.value || undefined,
       targetType: 'DEVICE_IDS',
       targetPayload: {
+        deviceIds: [quickPushDevice.value.id],
         deviceTokens: [quickPushDevice.value.pushTokenMasked],
       },
-    })
+    }, idempotency)
     toastStore.success(
       'Push Dispatched',
       `Notification sent to ${quickPushDevice.value.deviceModel || quickPushDevice.value.platform}`,
@@ -212,17 +272,20 @@ const filterOptions: SelectOption[] = [
 ]
 
 async function loadData() {
-  if (!appId.value) return
+  const currentTargetAppId = selectedAppId.value || appId.value
+  if (!currentTargetAppId) return
   isLoading.value = true
   try {
     const filterParam = statusFilter.value === 'ALL' ? undefined : statusFilter.value === 'ACTIVE'
+    const platformParam = selectedPlatform.value === 'ALL' ? undefined : selectedPlatform.value
     const [pageData, statsData] = await Promise.all([
-      devicesApi.list(appId.value, {
+      devicesApi.list(currentTargetAppId, {
+        platform: platformParam,
         active: filterParam,
         page: currentPage.value - 1,
         size: perPage.value,
       }),
-      devicesApi.stats(appId.value).catch(() => null),
+      devicesApi.stats(currentTargetAppId).catch(() => null),
     ])
 
     devices.value = pageData.content || []
@@ -246,7 +309,7 @@ async function loadData() {
     devices.value = [
       {
         id: 'dev_01j9a8b1',
-        appId: appId.value,
+        appId: currentTargetAppId,
         platform: 'ANDROID',
         pushTokenMasked: 'fcm_token_c8219x74b09e18a_alpha_v2',
         deviceModel: 'Samsung Galaxy S24 Ultra',
@@ -261,11 +324,11 @@ async function loadData() {
       },
       {
         id: 'dev_01j9a8b2',
-        appId: appId.value,
+        appId: currentTargetAppId,
         platform: 'IOS',
         pushTokenMasked: 'apns_token_88a912b77c1f82_iphone15pro',
         deviceModel: 'iPhone 15 Pro Max',
-        osVersion: 'iOS 17.5',
+        osVersion: 'iOS 18.1',
         appVersion: '2.4.0',
         language: 'en',
         timezone: 'Europe/London',
@@ -276,11 +339,11 @@ async function loadData() {
       },
       {
         id: 'dev_01j9a8b3',
-        appId: appId.value,
+        appId: currentTargetAppId,
         platform: 'WEB',
         pushTokenMasked: 'https://fcm.googleapis.com/fcm/send/eR89a_vapid',
-        deviceModel: 'Chrome on macOS',
-        osVersion: 'macOS Sonoma',
+        deviceModel: 'Mozilla/5.0 (X11; Linux x86_64)',
+        osVersion: 'Linux x86_64',
         appVersion: 'WebPortal 1.0',
         language: 'en',
         timezone: 'Asia/Tokyo',
@@ -288,6 +351,36 @@ async function loadData() {
         lastActiveAt: new Date(Date.now() - 86400000).toISOString(),
         createdAt: new Date(Date.now() - 500000000).toISOString(),
         tags: {},
+      },
+      {
+        id: 'dev_01j9a8b4',
+        appId: currentTargetAppId,
+        platform: 'ANDROID',
+        pushTokenMasked: 'fcm_token_pixel8_974720938b',
+        deviceModel: 'Google Pixel 8 Pro',
+        osVersion: 'Android 15',
+        appVersion: '4.2.0',
+        language: 'en',
+        timezone: 'America/Los_Angeles',
+        active: true,
+        lastActiveAt: new Date(Date.now() - 1800000).toISOString(),
+        createdAt: new Date(Date.now() - 400000000).toISOString(),
+        tags: { vip: 'true' },
+      },
+      {
+        id: 'dev_01j9a8b5',
+        appId: currentTargetAppId,
+        platform: 'IOS',
+        pushTokenMasked: 'apns_token_ipadpro_4879201a',
+        deviceModel: 'iPad Pro 13" M4',
+        osVersion: 'iPadOS 18.1',
+        appVersion: '4.2.0',
+        language: 'en',
+        timezone: 'Europe/Paris',
+        active: true,
+        lastActiveAt: new Date(Date.now() - 5400000).toISOString(),
+        createdAt: new Date(Date.now() - 300000000).toISOString(),
+        tags: { tier: 'enterprise' },
       },
     ]
     totalElements.value = devices.value.length
@@ -306,13 +399,24 @@ async function loadData() {
 
 const filteredDevices = computed(() => {
   let list = devices.value
+  if (selectedPlatform.value !== 'ALL') {
+    list = list.filter((d) => d.platform === selectedPlatform.value)
+  }
+  if (statusFilter.value === 'ACTIVE') {
+    list = list.filter((d) => d.active)
+  } else if (statusFilter.value === 'INACTIVE') {
+    list = list.filter((d) => !d.active)
+  }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter(
       (d) =>
         d.pushTokenMasked.toLowerCase().includes(q) ||
         d.deviceModel?.toLowerCase().includes(q) ||
-        d.platform.toLowerCase().includes(q),
+        d.platform.toLowerCase().includes(q) ||
+        d.externalUserId?.toLowerCase().includes(q) ||
+        d.osVersion?.toLowerCase().includes(q) ||
+        d.appVersion?.toLowerCase().includes(q),
     )
   }
   return list
@@ -331,10 +435,11 @@ function promptDelete(dev: DeviceSummary) {
 }
 
 async function confirmDelete() {
-  if (!deviceToDelete.value || !appId.value) return
+  const currentTargetAppId = selectedAppId.value || appId.value
+  if (!deviceToDelete.value || !currentTargetAppId) return
   isDeleting.value = true
   try {
-    await devicesApi.delete(appId.value, deviceToDelete.value.id)
+    await devicesApi.delete(currentTargetAppId, deviceToDelete.value.id)
     toastStore.success('Device Deregistered', 'Push token removed from device registry')
     showDeleteModal.value = false
     deviceToDelete.value = null
@@ -357,11 +462,19 @@ function handlePerPageChange(newSize: number) {
   loadData()
 }
 
-watch([appId, statusFilter], () => {
+watch([selectedAppId, statusFilter, selectedPlatform], () => {
+  currentPage.value = 1
   loadData()
 })
 
-onMounted(() => {
+watch(appId, (newId) => {
+  if (newId && newId !== selectedAppId.value) {
+    selectedAppId.value = newId
+  }
+})
+
+onMounted(async () => {
+  await loadApps()
   loadData()
 })
 </script>
@@ -413,64 +526,260 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- KPI Metric Cards for Devices -->
+    <!-- KPI Metric Cards for Devices (Interactive Platform Filter) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <MetricCard
-        title="Total Subscriptions"
-        :value="stats?.totalDevices ?? 0"
-        subtitle="All device registrations"
-        variant="indigo"
-        :icon="Users"
-        :loading="isLoading"
-      />
-      <MetricCard
-        title="Active Android"
-        :value="stats?.androidActive ?? 0"
-        subtitle="Firebase Cloud Messaging v1"
-        variant="emerald"
-        :icon="Smartphone"
-        :loading="isLoading"
-      />
-      <MetricCard
-        title="Active iOS"
-        :value="stats?.iosActive ?? 0"
-        subtitle="Apple Push Notification service"
-        variant="sky"
-        :icon="Apple"
-        :loading="isLoading"
-      />
-      <MetricCard
-        title="Active Web"
-        :value="stats?.webActive ?? 0"
-        subtitle="Web VAPID Service Worker"
-        variant="amber"
-        :icon="Globe"
-        :loading="isLoading"
-      />
+      <div
+        @click="setPlatformFilter('ALL')"
+        class="cursor-pointer rounded-2xl transition-all duration-200"
+        :class="[
+          selectedPlatform === 'ALL'
+            ? 'ring-2 ring-indigo-500 shadow-md ring-offset-2 dark:ring-offset-slate-900'
+            : 'hover:opacity-90',
+        ]"
+        title="Show all registered devices"
+      >
+        <MetricCard
+          title="Total Subscriptions"
+          :value="stats?.totalDevices ?? 0"
+          subtitle="All device registrations"
+          variant="indigo"
+          :icon="Users"
+          :loading="isLoading"
+        />
+      </div>
+
+      <div
+        @click="togglePlatformFilter('ANDROID')"
+        class="cursor-pointer rounded-2xl transition-all duration-200"
+        :class="[
+          selectedPlatform === 'ANDROID'
+            ? 'ring-2 ring-emerald-500 shadow-md ring-offset-2 dark:ring-offset-slate-900'
+            : 'hover:opacity-90',
+        ]"
+        title="Filter by Android FCM devices"
+      >
+        <MetricCard
+          title="Active Android"
+          :value="stats?.androidActive ?? 0"
+          subtitle="Firebase Cloud Messaging v1"
+          variant="emerald"
+          :icon="Smartphone"
+          :loading="isLoading"
+        />
+      </div>
+
+      <div
+        @click="togglePlatformFilter('IOS')"
+        class="cursor-pointer rounded-2xl transition-all duration-200"
+        :class="[
+          selectedPlatform === 'IOS'
+            ? 'ring-2 ring-sky-500 shadow-md ring-offset-2 dark:ring-offset-slate-900'
+            : 'hover:opacity-90',
+        ]"
+        title="Filter by Apple APNs devices"
+      >
+        <MetricCard
+          title="Active iOS"
+          :value="stats?.iosActive ?? 0"
+          subtitle="Apple Push Notification service"
+          variant="sky"
+          :icon="Apple"
+          :loading="isLoading"
+        />
+      </div>
+
+      <div
+        @click="togglePlatformFilter('WEB')"
+        class="cursor-pointer rounded-2xl transition-all duration-200"
+        :class="[
+          selectedPlatform === 'WEB'
+            ? 'ring-2 ring-amber-500 shadow-md ring-offset-2 dark:ring-offset-slate-900'
+            : 'hover:opacity-90',
+        ]"
+        title="Filter by Web Push VAPID devices"
+      >
+        <MetricCard
+          title="Active Web"
+          :value="stats?.webActive ?? 0"
+          subtitle="Web VAPID Service Worker"
+          variant="amber"
+          :icon="Globe"
+          :loading="isLoading"
+        />
+      </div>
     </div>
 
-    <!-- Filter Toolbar -->
+    <!-- Filter Toolbar: Search, Platform Segmented Tabs, App Selector, and Status -->
     <div
-      class="bg-white dark:bg-slate-900/90 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      class="bg-white dark:bg-slate-900/90 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3"
     >
-      <div class="flex flex-1 items-center gap-2 max-w-md">
+      <!-- Search Input -->
+      <div class="flex-1 min-w-[240px] max-w-md">
         <BaseInput
           v-model="searchQuery"
-          placeholder="Search by device token, model, or platform..."
+          placeholder="Search by token, model, user ID, or OS..."
           size="sm"
           :icon="Search"
         />
       </div>
 
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
-        <CustomSelect
-          v-model="statusFilter"
-          :options="filterOptions"
-          size="sm"
-          button-class="w-36"
-        />
+      <!-- Platform Segmented Tabs & Selectors -->
+      <div class="flex items-center justify-between lg:justify-end gap-3 flex-wrap">
+        <!-- Platform Segmented Controls -->
+        <div class="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs overflow-x-auto">
+          <button
+            type="button"
+            @click="setPlatformFilter('ALL')"
+            class="px-2.5 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0"
+            :class="[
+              selectedPlatform === 'ALL'
+                ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+            ]"
+          >
+            <Layers class="w-3.5 h-3.5" />
+            <span>All</span>
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold"
+              :class="selectedPlatform === 'ALL' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300' : 'bg-slate-200/60 text-slate-500 dark:bg-slate-700 dark:text-slate-400'"
+            >
+              {{ (stats?.totalDevices ?? totalElements).toLocaleString() }}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            @click="setPlatformFilter('ANDROID')"
+            class="px-2.5 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0"
+            :class="[
+              selectedPlatform === 'ANDROID'
+                ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400',
+            ]"
+          >
+            <Smartphone class="w-3.5 h-3.5" />
+            <span>Android</span>
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold"
+              :class="selectedPlatform === 'ANDROID' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300' : 'bg-slate-200/60 text-slate-500 dark:bg-slate-700 dark:text-slate-400'"
+            >
+              {{ (stats?.androidActive ?? 0).toLocaleString() }}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            @click="setPlatformFilter('IOS')"
+            class="px-2.5 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0"
+            :class="[
+              selectedPlatform === 'IOS'
+                ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400',
+            ]"
+          >
+            <Apple class="w-3.5 h-3.5" />
+            <span>iOS</span>
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold"
+              :class="selectedPlatform === 'IOS' ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/60 dark:text-sky-300' : 'bg-slate-200/60 text-slate-500 dark:bg-slate-700 dark:text-slate-400'"
+            >
+              {{ (stats?.iosActive ?? 0).toLocaleString() }}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            @click="setPlatformFilter('WEB')"
+            class="px-2.5 py-1.5 rounded-lg font-medium transition cursor-pointer flex items-center gap-1.5 shrink-0"
+            :class="[
+              selectedPlatform === 'WEB'
+                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-xs font-semibold'
+                : 'text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400',
+            ]"
+          >
+            <Globe class="w-3.5 h-3.5" />
+            <span>Web</span>
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-semibold"
+              :class="selectedPlatform === 'WEB' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-slate-200/60 text-slate-500 dark:bg-slate-700 dark:text-slate-400'"
+            >
+              {{ (stats?.webActive ?? 0).toLocaleString() }}
+            </span>
+          </button>
+        </div>
+
+        <!-- App Context Selector (when multiple apps exist) -->
+        <div v-if="appSelectOptions.length > 1" class="flex items-center gap-1.5">
+          <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">App:</span>
+          <CustomSelect
+            v-model="selectedAppId"
+            :options="appSelectOptions"
+            size="sm"
+            button-class="w-44"
+          />
+        </div>
+
+        <!-- Status Filter -->
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
+          <CustomSelect
+            v-model="statusFilter"
+            :options="filterOptions"
+            size="sm"
+            button-class="w-36"
+          />
+        </div>
       </div>
+    </div>
+
+    <!-- Active Filter Indicator Banner -->
+    <div
+      v-if="selectedPlatform !== 'ALL' || statusFilter !== 'ALL' || searchQuery.trim()"
+      class="flex items-center justify-between px-3.5 py-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 text-xs text-indigo-900 dark:text-indigo-200"
+    >
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-semibold text-indigo-700 dark:text-indigo-300">Active Filters:</span>
+
+        <span
+          v-if="selectedPlatform !== 'ALL'"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs"
+        >
+          <Smartphone v-if="selectedPlatform === 'ANDROID'" class="w-3 h-3 text-emerald-500" />
+          <Apple v-else-if="selectedPlatform === 'IOS'" class="w-3 h-3 text-sky-500" />
+          <Globe v-else-if="selectedPlatform === 'WEB'" class="w-3 h-3 text-amber-500" />
+          Platform: {{ selectedPlatform === 'ANDROID' ? 'Android' : selectedPlatform === 'IOS' ? 'iOS' : 'Web' }}
+          <button @click="setPlatformFilter('ALL')" class="hover:text-red-500 ml-0.5 cursor-pointer">
+            <X class="w-3 h-3" />
+          </button>
+        </span>
+
+        <span
+          v-if="statusFilter !== 'ALL'"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs"
+        >
+          Status: {{ statusFilter === 'ACTIVE' ? 'Active Tokens' : 'Inactive / Bounced' }}
+          <button @click="statusFilter = 'ALL'" class="hover:text-red-500 ml-0.5 cursor-pointer">
+            <X class="w-3 h-3" />
+          </button>
+        </span>
+
+        <span
+          v-if="searchQuery.trim()"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-2xs"
+        >
+          Search: "{{ searchQuery.trim() }}"
+          <button @click="searchQuery = ''" class="hover:text-red-500 ml-0.5 cursor-pointer">
+            <X class="w-3 h-3" />
+          </button>
+        </span>
+      </div>
+
+      <button
+        @click="resetAllFilters"
+        class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 hover:underline cursor-pointer shrink-0 ml-2"
+      >
+        Reset Filters
+      </button>
     </div>
 
     <!-- Devices Table Card -->
@@ -497,8 +806,25 @@ onMounted(() => {
             </tr>
 
             <tr v-else-if="filteredDevices.length === 0">
-              <td colspan="6" class="py-8 text-center text-slate-400">
-                No registered devices found matching your criteria.
+              <td colspan="6" class="py-12 text-center">
+                <div class="flex flex-col items-center justify-center max-w-sm mx-auto space-y-2">
+                  <div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+                    <Search class="w-5 h-5" />
+                  </div>
+                  <p class="font-semibold text-slate-800 dark:text-slate-200 text-sm">No devices found</p>
+                  <p class="text-xs text-slate-400">
+                    No registered devices found matching your current filters.
+                  </p>
+                  <BaseButton
+                    v-if="selectedPlatform !== 'ALL' || statusFilter !== 'ALL' || searchQuery.trim()"
+                    variant="outline"
+                    size="sm"
+                    class="mt-2"
+                    @click="resetAllFilters"
+                  >
+                    Clear All Filters
+                  </BaseButton>
+                </div>
               </td>
             </tr>
 

@@ -48,11 +48,17 @@ public class NotificationService {
         App app = appRepository.findById(appId)
                 .orElseThrow(() -> new ResourceNotFoundException("App not found: " + appId));
 
+        String effectiveKey = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? idempotencyKey.trim()
+                : (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank())
+                        ? request.getIdempotencyKey().trim()
+                        : null;
+
         // 1. Idempotency Check
-        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            Optional<Notification> existingOpt = notificationRepository.findByAppIdAndIdempotencyKey(appId, idempotencyKey.trim());
+        if (effectiveKey != null) {
+            Optional<Notification> existingOpt = notificationRepository.findByAppIdAndIdempotencyKey(appId, effectiveKey);
             if (existingOpt.isPresent()) {
-                log.info("Idempotent hit for key: {} in app: {}", idempotencyKey, appId);
+                log.info("Idempotent hit for key: {} in app: {}", effectiveKey, appId);
                 return toNotificationResponse(existingOpt.get());
             }
         }
@@ -71,7 +77,7 @@ public class NotificationService {
                 .targetType(request.getTargetType() != null ? request.getTargetType() : TargetType.ALL)
                 .targetPayload(request.getTargetPayload() != null ? request.getTargetPayload() : new HashMap<>())
                 .status(isScheduled ? NotificationStatus.SCHEDULED : NotificationStatus.QUEUED)
-                .idempotencyKey(idempotencyKey != null && !idempotencyKey.isBlank() ? idempotencyKey.trim() : null)
+                .idempotencyKey(effectiveKey)
                 .createdBy(userId)
                 .build();
 

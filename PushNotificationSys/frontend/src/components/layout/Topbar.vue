@@ -19,7 +19,6 @@ import {
   Mail,
   Menu,
   Moon,
-  Radio,
   ScrollText,
   Search,
   Send,
@@ -30,11 +29,11 @@ import {
   Sun,
   UserCheck,
   Users,
-  Zap,
+  // Zap,
 } from 'lucide-vue-next'
 import MfaSetupModal from '@/components/auth/MfaSetupModal.vue'
 import MfaDisableModal from '@/components/auth/MfaDisableModal.vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 defineProps<{
@@ -53,6 +52,12 @@ const authStore = useAuthStore()
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const globalSearch = ref<string>('')
 const avatarImgError = ref<boolean>(false)
+watch(
+  () => authStore.user?.avatarUrl,
+  () => {
+    avatarImgError.value = false
+  }
+)
 const copiedField = ref<string | null>(null)
 const isMfaSetupOpen = ref<boolean>(false)
 const isMfaDisableOpen = ref<boolean>(false)
@@ -103,12 +108,9 @@ const pageInfo = computed(() => {
   if (path.includes('/api-keys')) {
     return { title: 'API Keys', subtitle: 'Client & Server Credentials', icon: KeyRound }
   }
-  if (path.includes('/realtime')) {
-    return { title: 'Realtime Gateway', subtitle: 'Live STOMP WebSocket Monitor', icon: Zap }
-  }
-  if (path.includes('/web-push-test')) {
-    return { title: 'Web Push Testbench', subtitle: 'Browser VAPID Push Tester', icon: Radio }
-  }
+  // if (path.includes('/realtime')) {
+  //   return { title: 'Realtime Gateway', subtitle: 'Live STOMP WebSocket Monitor', icon: Zap }
+  // }
   if (path === '/members') {
     return { title: 'Team Members', subtitle: 'Organization Members & Access', icon: UserCheck }
   }
@@ -136,10 +138,10 @@ async function copyUserField(text?: string, fieldName = 'field') {
   }
 }
 
-function handleLogout(closeDropdown?: () => void) {
+async function handleLogout(closeDropdown?: () => void) {
   closeDropdown?.()
-  authStore.logout()
-  router.push('/login')
+  await authStore.logout()
+  await router.replace('/login')
 }
 
 function handleMfaToggle(closeDropdown?: () => void) {
@@ -239,9 +241,17 @@ onUnmounted(() => {
             <!-- User Avatar with Status Indicator -->
             <div class="relative shrink-0 flex items-center justify-center">
               <div
-                class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-sky-400 p-0.5 shadow-xs ring-1 ring-indigo-500/20 overflow-hidden flex items-center justify-center"
+                class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-sky-400 shadow-xs ring-1 ring-indigo-500/20 overflow-hidden flex items-center justify-center"
+                :class="{ 'p-0.5': !(authStore.user?.avatarUrl && !avatarImgError) }"
               >
-                <span class="font-bold text-xs text-white">
+                <img
+                  v-if="authStore.user?.avatarUrl && !avatarImgError"
+                  :src="authStore.user.avatarUrl"
+                  :alt="userDisplayName"
+                  class="w-full h-full object-cover"
+                  @error="avatarImgError = true"
+                />
+                <span v-else class="font-bold text-xs text-white">
                   {{ userInitials }}
                 </span>
               </div>
@@ -278,9 +288,17 @@ onUnmounted(() => {
             >
               <div class="flex items-start gap-3">
                 <div
-                  class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-sky-400 p-0.5 shadow-md shadow-indigo-600/20 ring-1 ring-white/30 shrink-0 overflow-hidden flex items-center justify-center"
+                  class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-sky-400 shadow-md shadow-indigo-600/20 ring-1 ring-white/30 shrink-0 overflow-hidden flex items-center justify-center"
+                  :class="{ 'p-0.5': !(authStore.user?.avatarUrl && !avatarImgError) }"
                 >
-                  <span class="font-bold text-sm text-white">
+                  <img
+                    v-if="authStore.user?.avatarUrl && !avatarImgError"
+                    :src="authStore.user.avatarUrl"
+                    :alt="userDisplayName"
+                    class="w-full h-full object-cover"
+                    @error="avatarImgError = true"
+                  />
+                  <span v-else class="font-bold text-sm text-white">
                     {{ userInitials }}
                   </span>
                 </div>

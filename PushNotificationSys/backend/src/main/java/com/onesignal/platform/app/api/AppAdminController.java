@@ -2,6 +2,7 @@ package com.onesignal.platform.app.api;
 
 import com.onesignal.platform.app.api.dto.AppDto;
 import com.onesignal.platform.app.application.AppService;
+import com.onesignal.platform.common.security.TenantContextHolder;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,15 @@ import java.util.UUID;
 public class AppAdminController {
 
     private final AppService appService;
+
+    @GetMapping("/admin/api/v1/users/me/accessible-apps")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<AppDto.AppResponse>> listAccessibleApps(
+            @RequestParam(required = false) UUID orgId) {
+        UUID effectiveOrgId = orgId != null ? orgId : TenantContextHolder.getOrganizationId();
+        UUID userId = TenantContextHolder.getUserId();
+        return ResponseEntity.ok(appService.listAccessibleApps(userId, effectiveOrgId));
+    }
 
     @GetMapping("/admin/api/v1/organizations/{orgId}/apps")
     @PreAuthorize("hasPermission(#orgId, 'org', 'app:read')")

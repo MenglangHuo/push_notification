@@ -21,6 +21,8 @@ public class SdkEventDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class IngestEventsRequest {
+        private UUID appId;
+
         @NotEmpty(message = "Events array cannot be empty")
         private List<@Valid EventItem> events;
     }

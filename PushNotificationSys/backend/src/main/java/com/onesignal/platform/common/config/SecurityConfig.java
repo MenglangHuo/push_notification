@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 "/admin/api/v1/auth/mfa/verify",
                                 "/admin/api/v1/auth/logout",
                                 "/admin/api/v1/invitations/accept",
+                                "/uploads/**",
                                 "/actuator/**",
                                 "/ws/**",
                                 "/error",

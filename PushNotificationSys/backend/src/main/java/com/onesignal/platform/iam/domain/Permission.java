@@ -36,7 +36,7 @@ public class Permission {
     private String description;
 
     @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false, columnDefinition = "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
     @Builder.Default
     private Instant createdAt = Instant.now();
 }

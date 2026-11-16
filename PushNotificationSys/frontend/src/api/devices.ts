@@ -26,7 +26,15 @@ export interface DeviceStats {
 }
 
 export const devicesApi = {
-  async list(appId: string, params?: { active?: boolean; page?: number; size?: number }) {
+  async list(
+    appId: string,
+    params?: {
+      platform?: 'ANDROID' | 'IOS' | 'WEB'
+      active?: boolean
+      page?: number
+      size?: number
+    },
+  ) {
     const res = await apiClient.get<{
       content: DeviceSummary[]
       totalElements: number

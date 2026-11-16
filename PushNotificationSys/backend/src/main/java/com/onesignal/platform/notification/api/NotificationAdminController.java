@@ -32,8 +32,14 @@ public class NotificationAdminController {
             @Valid @RequestBody NotificationDto.CreateNotificationRequest request
     ) {
         UUID userId = TenantContextHolder.getUserId();
+        if (request.getAppId() == null) {
+            request.setAppId(appId);
+        }
+        String effectiveIdempotencyKey = (idempotencyKey != null && !idempotencyKey.isBlank())
+                ? idempotencyKey
+                : request.getIdempotencyKey();
         NotificationDto.NotificationResponse response =
-                notificationService.createAndDispatch(appId, userId, request, idempotencyKey);
+                notificationService.createAndDispatch(appId, userId, request, effectiveIdempotencyKey);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

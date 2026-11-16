@@ -15,14 +15,25 @@ export interface IngestEventsResponse {
 }
 
 export const eventsApi = {
-  async ingestEvents(events: SdkEventItem[], sdkKey?: string): Promise<IngestEventsResponse> {
+  async ingestEvents(events: SdkEventItem[], sdkKey?: string, appId?: string): Promise<IngestEventsResponse> {
+    const effectiveAppId =
+      appId ||
+      (typeof localStorage !== 'undefined' ? localStorage.getItem('push_current_app_id') : null) ||
+      undefined
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
     if (sdkKey) {
       headers['X-Sdk-Key'] = sdkKey
     }
-    const res = await axios.post<IngestEventsResponse>('/sdk/v1/events', { events }, { headers })
+
+    const payload = {
+      appId: effectiveAppId,
+      events,
+    }
+
+    const res = await axios.post<IngestEventsResponse>('/sdk/v1/events', payload, { headers })
     return res.data
   },
 }

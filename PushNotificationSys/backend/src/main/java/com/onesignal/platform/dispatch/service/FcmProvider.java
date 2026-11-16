@@ -85,10 +85,8 @@ public class FcmProvider implements PushProvider {
                 if (!resp.isSuccessful()) {
                     FirebaseMessagingException ex = resp.getException();
                     String errorCode = ex != null ? ex.getMessagingErrorCode().name() : "UNKNOWN";
-                    boolean shouldDeactivate = ex != null && (
-                            MessagingErrorCode.UNREGISTERED.equals(ex.getMessagingErrorCode()) ||
-                            MessagingErrorCode.INVALID_ARGUMENT.equals(ex.getMessagingErrorCode())
-                    );
+                    boolean shouldDeactivate = ex != null &&
+                            MessagingErrorCode.UNREGISTERED.equals(ex.getMessagingErrorCode());
                     failures.add(RecipientFailure.builder()
                             .pushToken(recipients.get(i).getPushToken())
                             .deviceId(recipients.get(i).getDeviceId())

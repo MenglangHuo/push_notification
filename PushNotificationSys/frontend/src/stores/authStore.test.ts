@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from './authStore'
+import { authApi } from '../api/auth'
 
 describe('useAuthStore Permissions & Tenancy', () => {
   beforeEach(() => {
@@ -70,5 +71,80 @@ describe('useAuthStore Permissions & Tenancy', () => {
     authStore.setCurrentOrg('org-456')
     expect(authStore.currentOrgId).toBe('org-456')
     expect(authStore.currentAppId).toBe(null)
+  })
+
+  it('logout immediately clears authentication state before backend request completes', async () => {
+    let resolveLogout!: () => void
+    const logoutSpy = vi.spyOn(authApi, 'logout').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogout = resolve
+        }),
+    )
+
+    const authStore = useAuthStore()
+    authStore.setAccessToken('jwt-token-123')
+    authStore.user = {
+      id: 'user-1',
+      email: 'admin@pushnotify.local',
+      fullName: 'Super Admin',
+      superAdmin: true,
+      organizations: [],
+    }
+    localStorage.setItem('bronx_user', JSON.stringify(authStore.user))
+
+    expect(authStore.isAuthenticated).toBe(true)
+
+    const logoutPromise = authStore.logout()
+
+    // Synchronously cleared before the API promise settles so router guestOnly guards allow /login
+    expect(authStore.isAuthenticated).toBe(false)
+    expect(authStore.accessToken).toBe(null)
+    expect(authStore.user).toBe(null)
+    expect(localStorage.getItem('bronx_access_token')).toBe(null)
+    expect(localStorage.getItem('bronx_user')).toBe(null)
+    expect(authStore.currentOrgId).toBe(null)
+    expect(authStore.currentAppId).toBe(null)
+    expect(localStorage.getItem('push_current_org_id')).toBe(null)
+    expect(localStorage.getItem('push_current_app_id')).toBe(null)
+
+    resolveLogout()
+    await logoutPromise
+    expect(logoutSpy).toHaveBeenCalledTimes(1)
+    logoutSpy.mockRestore()
+  })
+
+  it('login clears stale currentAppId from previous session and validates currentOrgId', async () => {
+    const authStore = useAuthStore()
+    authStore.setCurrentOrg('old-org-not-in-new-user')
+    authStore.setCurrentApp('stale-unaccessible-app-id')
+
+    const loginSpy = vi.spyOn(authApi, 'login').mockResolvedValue({
+      accessToken: 'new-jwt',
+      mfaRequired: false,
+      user: {
+        id: 'user-scoped',
+        email: 'scoped@company.com',
+        fullName: 'Scoped User',
+        superAdmin: false,
+        organizations: [
+          {
+            orgId: 'org-allowed',
+            name: 'Allowed Org',
+            slug: 'allowed',
+            tier: 'FREE',
+            roles: ['Owner'],
+            permissions: ['analytics:read'],
+          },
+        ],
+      },
+    } as any)
+
+    const ok = await authStore.login('scoped@company.com', 'Password123!')
+    expect(ok).toBe(true)
+    expect(authStore.currentOrgId).toBe('org-allowed')
+    expect(authStore.currentAppId).toBe(null)
+
+    loginSpy.mockRestore()
   })
 })

@@ -9,7 +9,6 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Radio,
   ScrollText,
   Send,
   Settings,
@@ -18,7 +17,7 @@ import {
   UserCheck,
   Users,
   Wrench,
-  Zap,
+  // Zap,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -202,20 +201,13 @@ const navSections = computed<NavSection[]>(() => {
               icon: Settings,
               permission: 'credential:read',
             },
-            {
-              id: 'web-push-test',
-              name: 'Push Testbench & Sim',
-              path: `/apps/${appId}/web-push-test`,
-              icon: Radio,
-              permission: 'notification:create',
-            },
-            {
-              id: 'realtime',
-              name: 'Realtime Gateway',
-              path: `/apps/${appId}/realtime`,
-              icon: Zap,
-              permission: 'notification:read',
-            },
+            // {
+            //   id: 'realtime',
+            //   name: 'Realtime Gateway',
+            //   path: `/apps/${appId}/realtime`,
+            //   icon: Zap,
+            //   permission: 'notification:read',
+            // },
           ],
         },
       ],
@@ -252,7 +244,9 @@ const navSections = computed<NavSection[]>(() => {
 
   return sections
 })
-
+function activeChildIndex(item: NavItem): number {
+  return item.children?.findIndex((c) => isItemActive(c)) ?? -1
+}
 function isItemActive(itemOrPath: NavItem | SubItem | string): boolean {
   const p = currentPath.value
   const id = typeof itemOrPath === 'string' ? '' : itemOrPath.id
@@ -277,10 +271,8 @@ function isItemActive(itemOrPath: NavItem | SubItem | string): boolean {
         return p.includes('/segments')
       case 'api-keys':
         return p.includes('/api-keys')
-      case 'realtime':
-        return p.includes('/realtime')
-      case 'web-push-test':
-        return p.includes('/web-push-test')
+      // case 'realtime':
+      //   return p.includes('/realtime')
       case 'members':
         return p.startsWith('/members')
       case 'roles':
@@ -325,9 +317,9 @@ watch(currentPath, () => {
   autoExpandActiveGroup()
 })
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+async function handleLogout() {
+  await authStore.logout()
+  await router.push('/login')
 }
 </script>
 
@@ -596,137 +588,182 @@ function handleLogout() {
               </button>
 
               <!-- Collapsible Children Submenu (Clean & Professional Tree Link UI) -->
-              <div
-                v-show="openGroups[item.id]"
-                class="relative mt-1 pt-1 pb-1 space-y-1.5 transition-all duration-200"
-              >
-                <!-- Child Menu Items -->
-                <div
-                  v-for="(sub, subIdx) in item.children"
-                  :key="sub.id"
-                  class="relative flex items-center"
-                >
-                  <!-- Continuous vertical trunk segment (rendered through each item EXCEPT below the last child) -->
-                  <div
-                    v-if="subIdx < (item.children?.length ?? 0) - 1"
-                    class="absolute w-[2px] pointer-events-none transition-colors duration-200 z-10"
-                    :class="[
-                      isGroupActive(item)
-                        ? 'bg-indigo-300 dark:bg-indigo-600/60'
-                        : 'bg-slate-300 dark:bg-slate-700',
-                    ]"
-                    style="left: 29px; top: -8px; bottom: -8px;"
-                  ></div>
+            <!-- Collapsible Children Submenu -->
+<div class="tree-collapse" :class="{ 'is-open': openGroups[item.id] }">
+  <ul class="tree-list" :inert="!openGroups[item.id]">
+    <li
+      v-for="(sub, subIdx) in item.children"
+      :key="sub.id"
+      class="tree-item"
+      :class="{
+        'is-last': subIdx === (item.children?.length ?? 0) - 1,
+        'is-active': isItemActive(sub),
+        'path-up': subIdx <= activeChildIndex(item),
+        'path-down': subIdx < activeChildIndex(item),
+      }"
+    >
+      <span class="tree-node" aria-hidden="true"></span>
 
-                  <!-- Connector from parent button down into the first child -->
-                  <div
-                    v-if="subIdx === 0"
-                    class="absolute w-[2px] pointer-events-none transition-colors duration-200 z-10"
-                    :class="[
-                      isGroupActive(item)
-                        ? 'bg-indigo-300 dark:bg-indigo-600/60'
-                        : 'bg-slate-300 dark:bg-slate-700',
-                    ]"
-                    style="left: 29px; top: -10px; height: 10px;"
-                  ></div>
+      <router-link
+        :to="sub.path"
+        @click="emit('closeMobile')"
+        class="group relative flex h-9 w-full items-center justify-between rounded-xl border px-3 text-xs font-medium transition-all duration-200"
+        :class="
+          isItemActive(sub)
+            ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-semibold border-indigo-600 shadow-md shadow-indigo-600/20 ring-1 ring-white/20'
+            : 'bg-white/95 dark:bg-slate-900/90 border-slate-200/90 dark:border-slate-800/90 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-600/70 hover:text-indigo-600 dark:hover:text-indigo-400'
+        "
+      >
+        <div class="flex min-w-0 items-center gap-2.5">
+          <component
+            v-if="sub.icon"
+            :is="sub.icon"
+            class="h-3.5 w-3.5 shrink-0 transition-colors"
+            :class="
+              isItemActive(sub)
+                ? 'text-white'
+                : 'text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400'
+            "
+          />
+          <span
+            v-else
+            class="h-1.5 w-1.5 shrink-0 rounded-full"
+            :class="isItemActive(sub) ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'"
+          ></span>
+          <span class="truncate leading-snug tracking-tight">{{ sub.name }}</span>
+        </div>
 
-                  <!-- Curved Branch Link (Curving 90° from trunk into child card's left edge, z-20 so card background/shadow never covers it) -->
-                  <div
-                    class="absolute pointer-events-none transition-colors duration-200 z-20"
-                    :class="[
-                      isItemActive(sub)
-                        ? 'border-indigo-600 dark:border-indigo-400'
-                        : isGroupActive(item)
-                          ? 'border-indigo-300 dark:border-indigo-600/70'
-                          : 'border-slate-300 dark:border-slate-700',
-                    ]"
-                    style="
-                      left: 29px;
-                      top: -8px;
-                      width: 22px;
-                      height: calc(50% + 8px);
-                      border-left-width: 2px;
-                      border-bottom-width: 2px;
-                      border-bottom-left-radius: 10px;
-                    "
-                  ></div>
-
-                  <!-- Submenu Item Card (Both selected & unselected have border and background) -->
-                  <router-link
-                    :to="sub.path"
-                    @click="emit('closeMobile')"
-                    class="w-full relative flex items-center justify-between ml-[50px] px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-200 group overflow-hidden"
-                    :class="[
-                      isItemActive(sub)
-                        ? 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-indigo-500 text-white font-semibold shadow-md shadow-indigo-600/20 ring-1 ring-white/20 border border-indigo-600'
-                        : 'bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 border border-slate-200/90 dark:border-slate-800/90 hover:border-indigo-300 dark:hover:border-indigo-600/80 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-2xs hover:shadow-xs hover:-translate-y-0.5',
-                    ]"
-                  >
-                    <div class="flex items-center gap-2.5 min-w-0">
-                      <!-- Active glowing dot or Inactive icon -->
-                      <span
-                        v-if="isItemActive(sub)"
-                        class="w-2 h-2 rounded-full bg-white ring-2 ring-indigo-300/50 shrink-0 shadow-xs"
-                      ></span>
-                      <component
-                        v-else-if="sub.icon"
-                        :is="sub.icon"
-                        class="w-3.5 h-3.5 shrink-0 text-slate-400 dark:text-slate-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors"
-                      />
-                      <span
-                        v-else
-                        class="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-indigo-400 shrink-0 transition-colors"
-                      ></span>
-
-                      <span class="truncate tracking-tight leading-snug">{{ sub.name }}</span>
-                    </div>
-
-                    <!-- Subtle right chevron on hover when unselected -->
-                    <ChevronRight
-                      v-if="!isItemActive(sub)"
-                      class="w-3 h-3 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-all duration-200 -translate-x-1 group-hover:translate-x-0 shrink-0"
-                    />
-                  </router-link>
-                </div>
-              </div>
+        <ChevronRight
+          v-if="!isItemActive(sub)"
+          class="h-3 w-3 shrink-0 -translate-x-1 text-slate-300 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 dark:text-slate-600"
+        />
+      </router-link>
+    </li>
+  </ul>
+</div>
             </div>
           </template>
         </div>
       </div>
     </div>
 
-    <!-- Sidebar Bottom: Organization / App Mini Status & Sign Out -->
-    <div
-      class="border-t border-slate-200/80 dark:border-slate-800/80 p-3 bg-slate-50/50 dark:bg-slate-950/40"
-    >
-      <div v-if="!isCollapsed" class="flex items-center justify-between mb-2 px-1">
-        <div class="truncate text-left min-w-0">
-          <p class="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate">
-            {{ authStore.user?.fullName || authStore.user?.email || 'Push Admin' }}
-          </p>
-          <p class="text-[10px] text-slate-400 truncate">
-            {{ authStore.roleLabel }}
-          </p>
-        </div>
-        <button
-          type="button"
-          @click="handleLogout"
-          title="Sign Out"
-          class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-        >
-          <LogOut class="w-4 h-4" />
-        </button>
-      </div>
-      <div v-else class="flex justify-center">
-        <button
-          type="button"
-          @click="handleLogout"
-          title="Sign Out"
-          class="p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors cursor-pointer"
-        >
-          <LogOut class="w-4 h-4" />
-        </button>
-      </div>
-    </div>
+  
   </aside>
 </template>
+<style scoped >
+/* ---------- Smooth expand / collapse ---------- */
+.tree-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.2s ease;
+}
+.tree-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* ---------- Tree tokens ---------- */
+.tree-list {
+  --rail-x: 31px;   /* center of the parent icon (border 1 + p 10 + pl 4 + half of 32) */
+  --indent: 52px;   /* where the child card starts */
+  --item-h: 36px;   /* must match h-9 on the link */
+  --gap: 6px;       /* vertical gap between cards */
+  --reach: 8px;     /* first rail segment: parent bottom -> first card */
+
+  --line: #cbd5e1;
+  --line-active: #6366f1;
+  --node-bg: #ffffff;
+
+  min-height: 0;          /* required for the grid collapse */
+  overflow: hidden;
+  margin: 0;
+  padding: 8px 4px 6px 0; /* room for card shadows */
+  list-style: none;
+}
+:global(.dark) .tree-list {
+  --line: #334155;
+  --line-active: #818cf8;
+  --node-bg: #020617;
+}
+
+/* ---------- Item ---------- */
+.tree-item {
+  position: relative;
+  padding-left: var(--indent);
+  --c-up: var(--line);   /* color above the node */
+  --c-down: var(--line); /* color below the node */
+}
+.tree-item + .tree-item {
+  margin-top: var(--gap);
+  --reach: var(--gap);
+}
+/* highlight the route from the parent down to the active item */
+.tree-item.path-up   { --c-up: var(--line-active); }
+.tree-item.path-down { --c-down: var(--line-active); }
+
+/* Rail: reaches back over the gap so segments join with no seams.
+   One gradient switches color exactly at the node's center. */
+.tree-item::before {
+  --mid: calc(var(--reach) + var(--item-h) / 2);
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: calc(var(--rail-x) - 1px);
+  top: calc(var(--reach) * -1);
+  width: 2px;
+  height: calc(var(--reach) + var(--item-h));
+  background: linear-gradient(
+    to bottom,
+    var(--c-up) 0 var(--mid),
+    var(--c-down) var(--mid) 100%
+  );
+}
+/* Last item: rail stops at its node (no dangling line) */
+.tree-item.is-last::before {
+  height: calc(var(--reach) + var(--item-h) / 2 + 1px);
+  background: var(--c-up);
+}
+
+/* Connector: node -> card */
+.tree-item::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: var(--rail-x);
+  top: calc(var(--item-h) / 2 - 1px);
+  width: calc(var(--indent) - var(--rail-x));
+  height: 2px;
+  background: var(--c-up);
+  border-radius: 2px 0 0 2px;
+}
+
+/* Node dot */
+.tree-node {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--rail-x) - 5px);
+  top: calc(var(--item-h) / 2 - 5px);
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border: 2px solid var(--c-up);
+  background: var(--node-bg);
+  transition: all 0.2s ease;
+}
+.tree-item.is-active .tree-node {
+  background: var(--line-active);
+  border-color: var(--line-active);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--line-active) 25%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-collapse,
+  .tree-node {
+    transition: none;
+  }
+}
+</style>

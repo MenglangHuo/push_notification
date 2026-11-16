@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authApi } from '../api/auth'
+import { useAppStore } from './appStore'
 import type { MfaSetupResponse, MfaStatusResponse, UserProfile } from '../api/types'
 
 export interface PendingTwoFactorData {
@@ -169,19 +170,36 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  function resetTenantContext() {
+    currentOrgId.value = null
+    localStorage.removeItem('push_current_org_id')
+    setCurrentApp(null)
+    useAppStore().clear()
+  }
+
+  function applyUserProfile(profile: UserProfile, resetAppContext = false) {
+    user.value = profile
+    localStorage.setItem('bronx_user', JSON.stringify(profile))
+
+    if (resetAppContext) {
+      setCurrentApp(null)
+      useAppStore().clear()
+    }
+
+    if (profile.organizations.length > 0) {
+      const hasCurrentOrg = profile.organizations.some((o) => o.orgId === currentOrgId.value)
+      if (!currentOrgId.value || !hasCurrentOrg) {
+        setCurrentOrg(profile.organizations[0].orgId)
+      }
+    } else {
+      resetTenantContext()
+    }
+  }
+
   async function fetchMe() {
     try {
       const profile = await authApi.getMe()
-      user.value = profile
-      localStorage.setItem('bronx_user', JSON.stringify(profile))
-
-      // Set default org if not selected or invalid
-      if (profile.organizations.length > 0) {
-        const hasCurrentOrg = profile.organizations.some((o) => o.orgId === currentOrgId.value)
-        if (!currentOrgId.value || !hasCurrentOrg) {
-          setCurrentOrg(profile.organizations[0].orgId)
-        }
-      }
+      applyUserProfile(profile, false)
     } catch (e) {
       user.value = null
       setAccessToken(null)
@@ -221,12 +239,10 @@ export const useAuthStore = defineStore('auth', () => {
       if (res.accessToken) {
         setAccessToken(res.accessToken)
         if (res.user) {
-          user.value = res.user
-          localStorage.setItem('bronx_user', JSON.stringify(res.user))
-          if (res.user.organizations.length > 0 && !currentOrgId.value) {
-            setCurrentOrg(res.user.organizations[0].orgId)
-          }
+          applyUserProfile(res.user, true)
         } else {
+          setCurrentApp(null)
+          useAppStore().clear()
           await fetchMe()
         }
       }
@@ -249,12 +265,10 @@ export const useAuthStore = defineStore('auth', () => {
         setAccessToken(res.accessToken)
         clearPendingTwoFactor()
         if (res.user) {
-          user.value = res.user
-          localStorage.setItem('bronx_user', JSON.stringify(res.user))
-          if (res.user.organizations.length > 0 && !currentOrgId.value) {
-            setCurrentOrg(res.user.organizations[0].orgId)
-          }
+          applyUserProfile(res.user, true)
         } else {
+          setCurrentApp(null)
+          useAppStore().clear()
           await fetchMe()
         }
       }
@@ -269,15 +283,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    // Immediately invalidate client-side authentication and tenant/app state
+    setAccessToken(null)
+    user.value = null
+    clearPendingTwoFactor()
+    localStorage.removeItem('bronx_user')
+    resetTenantContext()
+
     try {
       await authApi.logout()
     } catch (e) {
       // Ignore network errors during logout
-    } finally {
-      setAccessToken(null)
-      user.value = null
-      clearPendingTwoFactor()
-      localStorage.removeItem('bronx_user')
     }
   }
 

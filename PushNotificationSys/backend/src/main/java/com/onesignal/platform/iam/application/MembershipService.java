@@ -4,14 +4,17 @@ import com.onesignal.platform.audit.application.AuditLogService;
 import com.onesignal.platform.common.exception.AppException;
 import com.onesignal.platform.common.exception.ResourceNotFoundException;
 import com.onesignal.platform.common.security.TenantContextHolder;
+import com.onesignal.platform.common.storage.AvatarUrlResolver;
 import com.onesignal.platform.iam.api.dto.MemberDto;
 import com.onesignal.platform.iam.domain.MemberRoleAssignment;
 import com.onesignal.platform.iam.domain.Membership;
 import com.onesignal.platform.iam.domain.Role;
+import com.onesignal.platform.iam.domain.User;
 import com.onesignal.platform.iam.infrastructure.MemberRoleAssignmentRepository;
 import com.onesignal.platform.iam.infrastructure.MembershipRepository;
 import com.onesignal.platform.iam.infrastructure.RoleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class MembershipService {
@@ -28,13 +32,21 @@ public class MembershipService {
     private final MembershipRepository membershipRepository;
     private final MemberRoleAssignmentRepository roleAssignmentRepository;
     private final RoleRepository roleRepository;
+    private final UserProfileService userProfileService;
     private final PermissionCacheService permissionCacheService;
     private final AuditLogService auditLogService;
+    private final AvatarUrlResolver avatarUrlResolver;
 
     @Transactional(readOnly = true)
     public List<MemberDto.MemberResponse> listMembers(UUID orgId) {
-        return membershipRepository.findAllByOrganizationIdWithRoles(orgId).stream()
-                .map(this::toResponse)
+        List<Membership> memberships = membershipRepository.findAllByOrganizationIdWithRoles(orgId);
+        List<UUID> userIds = memberships.stream().map(m -> m.getUser().getId()).distinct().toList();
+        Map<UUID, List<Membership>> userOrgsMap = userIds.isEmpty() ? Map.of() :
+                membershipRepository.findAllByUserIdsWithOrganization(userIds).stream()
+                        .collect(Collectors.groupingBy(m -> m.getUser().getId()));
+
+        return memberships.stream()
+                .map(m -> toResponse(m, userOrgsMap.getOrDefault(m.getUser().getId(), List.of(m))))
                 .collect(Collectors.toList());
     }
 
@@ -74,7 +86,7 @@ public class MembershipService {
                 null, null
         );
 
-        return toResponse(membership);
+        return toResponse(membership, membershipRepository.findAllByUserIdsWithOrganization(List.of(membership.getUser().getId())));
     }
 
     @Transactional
@@ -121,7 +133,38 @@ public class MembershipService {
         );
     }
 
-    private MemberDto.MemberResponse toResponse(Membership m) {
+    @Transactional
+    public MemberDto.MemberResponse updateMemberProfile(UUID orgId, UUID membershipId, MemberDto.UpdateMemberProfileRequest request) {
+        Membership membership = membershipRepository.findById(membershipId)
+                .orElseThrow(() -> new ResourceNotFoundException("Membership not found"));
+
+        if (!membership.getOrganization().getId().equals(orgId)) {
+            throw new AppException("Membership does not belong to this organization", HttpStatus.BAD_REQUEST);
+        }
+
+        UUID currentUserId = TenantContextHolder.getUserId();
+        if (currentUserId == null || !membership.getUser().getId().equals(currentUserId)) {
+            throw new AppException("You can only update your own profile", HttpStatus.FORBIDDEN);
+        }
+
+        User user = userProfileService.updateProfile(
+                membership.getUser(),
+                request.getFullName(),
+                request.getAvatarUrl(),
+                request.getRemoveAvatar()
+        );
+
+        auditLogService.record(
+                orgId, null, currentUserId, "USER",
+                "MEMBER_PROFILE_UPDATED", "membership", membershipId.toString(),
+                null, Map.of("fullName", user.getFullName(), "avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : ""),
+                null, null
+        );
+
+        return toResponse(membership, membershipRepository.findAllByUserIdsWithOrganization(List.of(user.getId())));
+    }
+
+    private MemberDto.MemberResponse toResponse(Membership m, List<Membership> userMemberships) {
         List<MemberDto.RoleAssignmentInfo> roleInfos = m.getRoleAssignments().stream()
                 .map(ra -> MemberDto.RoleAssignmentInfo.builder()
                         .assignmentId(ra.getId())
@@ -131,12 +174,26 @@ public class MembershipService {
                         .build())
                 .collect(Collectors.toList());
 
+        List<MemberDto.UserOrganizationInfo> orgInfos = userMemberships == null ? List.of() : userMemberships.stream()
+                .map(um -> MemberDto.UserOrganizationInfo.builder()
+                        .organizationId(um.getOrganization().getId())
+                        .organizationName(um.getOrganization().getName())
+                        .organizationSlug(um.getOrganization().getSlug())
+                        .status(um.getStatus())
+                        .build())
+                .collect(Collectors.toList());
+
         return MemberDto.MemberResponse.builder()
                 .membershipId(m.getId())
                 .userId(m.getUser().getId())
                 .email(m.getUser().getEmail())
                 .fullName(m.getUser().getFullName())
+                .avatarUrl(avatarUrlResolver.resolve(m.getUser().getAvatarUrl()))
                 .status(m.getStatus())
+                .organizationId(m.getOrganization().getId())
+                .organizationName(m.getOrganization().getName())
+                .organizationSlug(m.getOrganization().getSlug())
+                .organizations(orgInfos)
                 .roleAssignments(roleInfos)
                 .build();
     }

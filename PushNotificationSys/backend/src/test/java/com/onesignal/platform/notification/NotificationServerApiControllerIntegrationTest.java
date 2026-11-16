@@ -63,6 +63,45 @@ class NotificationServerApiControllerIntegrationTest {
     }
 
     @Test
+    void testCreateNotificationWithBodyIdempotencyReturnsIdempotency() throws Exception {
+        String uniqueIdemp = "body-idemp-" + java.util.UUID.randomUUID();
+        String jsonPayload = """
+                {
+                  "title": "Idempotent Push",
+                  "body": "Checking body idempotency field",
+                  "idempotency": "%s",
+                  "priority": "HIGH",
+                  "targetType": "ALL"
+                }
+                """.formatted(uniqueIdemp);
+
+        MvcResult firstResult = mockMvc.perform(post("/api/v1/notifications")
+                        .header("X-Api-Key", VALID_REST_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.idempotency").value(uniqueIdemp))
+                .andExpect(jsonPath("$.idempotencyKey").value(uniqueIdemp))
+                .andReturn();
+
+        // Re-submitting with the same body idempotency must return the exact same notification ID
+        NotificationDto.NotificationResponse first = objectMapper.readValue(
+                firstResult.getResponse().getContentAsString(),
+                NotificationDto.NotificationResponse.class
+        );
+
+        mockMvc.perform(post("/api/v1/notifications")
+                        .header("X-Api-Key", VALID_REST_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonPayload))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.id").value(first.getId().toString()))
+                .andExpect(jsonPath("$.idempotency").value(uniqueIdemp))
+                .andExpect(jsonPath("$.idempotencyKey").value(uniqueIdemp));
+    }
+
+    @Test
     void testCreateNotificationWithoutApiKeyForbidden() throws Exception {
         NotificationDto.CreateNotificationRequest request = NotificationDto.CreateNotificationRequest.builder()
                 .title("Unauthorized Test")

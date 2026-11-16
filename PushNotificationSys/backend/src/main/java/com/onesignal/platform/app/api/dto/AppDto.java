@@ -1,5 +1,6 @@
 package com.onesignal.platform.app.api.dto;
 
+import com.onesignal.platform.apikey.api.dto.ApiKeyDto;
 import com.onesignal.platform.app.domain.ProviderType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Builder;
@@ -35,5 +36,8 @@ public class AppDto {
         private List<ProviderType> configuredProviders;
         private Instant createdAt;
         private Instant updatedAt;
+        private ApiKeyDto.ApiKeyCreatedResponse defaultServerKey;
+        private ApiKeyDto.ApiKeyCreatedResponse defaultClientSdkKey;
+        private String vapidPublicKey;
     }
 }

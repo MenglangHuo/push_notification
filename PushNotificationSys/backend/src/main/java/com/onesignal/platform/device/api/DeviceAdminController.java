@@ -34,12 +34,13 @@ public class DeviceAdminController {
     @PreAuthorize("hasPermission(#appId, 'app', 'device:read')")
     public ResponseEntity<Page<DeviceDto.DeviceResponse>> listDevices(
             @PathVariable UUID appId,
+            @RequestParam(required = false) com.onesignal.platform.device.domain.DevicePlatform platform,
             @RequestParam(required = false) Boolean active,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by("lastActiveAt").descending());
-        return ResponseEntity.ok(deviceRegistrationService.listDevices(appId, active, pageRequest));
+        return ResponseEntity.ok(deviceRegistrationService.listDevices(appId, platform, active, pageRequest));
     }
 
     @GetMapping("/stats")

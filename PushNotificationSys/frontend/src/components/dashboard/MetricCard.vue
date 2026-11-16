@@ -4,7 +4,7 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     title: string
-    value: string | number
+    value?: string | number
     subtitle?: string
     icon?: any
     loading?: boolean
@@ -16,6 +16,7 @@ const props = withDefaults(
     variant?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'slate' | 'sky'
   }>(),
   {
+    value: '',
     loading: false,
     progressPercent: 40,
     variant: 'indigo',
@@ -101,7 +102,7 @@ const clampedProgress = computed(() => {
         v-else
         class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans"
       >
-        {{ value }}
+        <slot>{{ value }}</slot>
       </div>
     </div>
 

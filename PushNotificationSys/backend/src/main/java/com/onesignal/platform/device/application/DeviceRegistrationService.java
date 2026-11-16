@@ -128,12 +128,24 @@ public class DeviceRegistrationService {
     }
 
     @Transactional(readOnly = true)
-    public Page<DeviceDto.DeviceResponse> listDevices(UUID appId, Boolean active, Pageable pageable) {
-        Page<Device> page = (active != null)
-                ? deviceRepository.findByAppIdAndActive(appId, active, pageable)
-                : deviceRepository.findByAppId(appId, pageable);
+    public Page<DeviceDto.DeviceResponse> listDevices(UUID appId, DevicePlatform platform, Boolean active, Pageable pageable) {
+        Page<Device> page;
+        if (platform != null && active != null) {
+            page = deviceRepository.findByAppIdAndPlatformAndActive(appId, platform, active, pageable);
+        } else if (platform != null) {
+            page = deviceRepository.findByAppIdAndPlatform(appId, platform, pageable);
+        } else if (active != null) {
+            page = deviceRepository.findByAppIdAndActive(appId, active, pageable);
+        } else {
+            page = deviceRepository.findByAppId(appId, pageable);
+        }
 
         return page.map(this::toDeviceResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<DeviceDto.DeviceResponse> listDevices(UUID appId, Boolean active, Pageable pageable) {
+        return listDevices(appId, null, active, pageable);
     }
 
     @Transactional(readOnly = true)

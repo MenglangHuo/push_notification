@@ -192,12 +192,22 @@ public class NotificationRouterConsumer {
             }
         } else if (targetType == TargetType.DEVICE_IDS && payload != null) {
             Object idsObj = payload.get("deviceIds");
-            if (idsObj instanceof List<?> rawList) {
+            if (idsObj instanceof List<?> rawList && !rawList.isEmpty()) {
                 List<UUID> uuids = rawList.stream()
                         .map(Object::toString)
+                        .filter(s -> {
+                            try { UUID.fromString(s); return true; } catch (Exception e) { return false; }
+                        })
                         .map(UUID::fromString)
                         .toList();
-                return deviceRepository.findByAppIdAndIdInAndActiveTrue(appId, uuids);
+                if (!uuids.isEmpty()) {
+                    return deviceRepository.findByAppIdAndIdInAndActiveTrue(appId, uuids);
+                }
+            }
+            Object tokensObj = payload.get("deviceTokens");
+            if (tokensObj instanceof List<?> rawList && !rawList.isEmpty()) {
+                List<String> tokens = rawList.stream().map(Object::toString).toList();
+                return deviceRepository.findByAppIdAndPushTokenInAndActiveTrue(appId, tokens);
             }
         } else if (targetType == TargetType.EXTERNAL_USER_IDS && payload != null) {
             Object userIdsObj = payload.get("externalUserIds");

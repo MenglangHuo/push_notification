@@ -6,6 +6,10 @@ server:
 spring:
   application:
     name: push-notification-platform
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:54327}/${DB_NAME:push_platform}
     username: ${DB_USER:postgres}
@@ -19,7 +23,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -27,8 +31,9 @@ spring:
         show_sql: false
         default_batch_fetch_size: 30
   flyway:
-    enabled: true
-    baseline-on-migrate: true
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}
+    out-of-order: ${SPRING_FLYWAY_OUT_OF_ORDER:true}
     locations: classpath:db/migration
   data:
     redis:
@@ -51,6 +56,19 @@ spring:
         spring.json.trusted.packages: "com.onesignal.platform.*"
 
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+  upload:
+    provider: ${UPLOAD_PROVIDER:local}
+    dir: ${UPLOAD_DIR:./uploads}
+    public-path-prefix: ${UPLOAD_PUBLIC_PATH_PREFIX:/uploads}
+    cdn-base-url: ${UPLOAD_CDN_BASE_URL:}
+    avatar:
+      max-dimension: ${AVATAR_MAX_DIMENSION:512}
+      max-bytes: ${AVATAR_MAX_BYTES:5242880}
+      jpeg-quality: ${AVATAR_JPEG_QUALITY:0.88}
+      sub-dir: avatars
+  migration:
+    avatar-base64: ${MIGRATE_BASE64_AVATARS:false}
   frontend-url: ${FRONTEND_URL:http://localhost:4000}
   jwt:
     # 256-bit secret for signing HS256 tokens (can be overridden via env var)

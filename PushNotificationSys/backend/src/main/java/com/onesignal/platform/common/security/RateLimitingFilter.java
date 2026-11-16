@@ -46,7 +46,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Bypass swagger, actuator, websocket, error, and static endpoints
-        if (path.startsWith("/swagger-ui") ||
+        if (path.startsWith("/uploads") ||
+            path.startsWith("/swagger-ui") ||
             path.startsWith("/v3/api-docs") ||
             path.startsWith("/actuator") ||
             path.startsWith("/ws") ||

@@ -6,11 +6,16 @@ export interface TabItem {
   badge?: string | number
 }
 
-defineProps<{
-  modelValue: string
-  tabs: TabItem[]
-  size?: 'sm' | 'md'
-}>()
+withDefaults(
+  defineProps<{
+    modelValue: string
+    tabs: TabItem[]
+    size?: 'sm' | 'md'
+  }>(),
+  {
+    size: 'sm',
+  },
+)
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
@@ -25,29 +30,30 @@ function selectTab(id: string) {
 
 <template>
   <div
-    class="inline-flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-none"
+    class="inline-flex items-center gap-1 p-0.5 sm:p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 select-none shrink-0"
+    :class="size === 'md' ? 'h-10' : 'h-9'"
   >
     <button
       v-for="tab in tabs"
       :key="tab.id"
       type="button"
       @click="selectTab(tab.id)"
-      class="flex items-center gap-1.5 rounded-lg font-semibold transition-all cursor-pointer"
+      class="rounded-lg font-semibold whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all cursor-pointer"
       :class="[
-        size === 'md' ? 'px-3.5 py-2 text-xs' : 'px-3 py-1.5 text-xs',
+        size === 'md' ? 'h-8 px-3.5 text-xs' : 'h-7.5 sm:h-8 px-2.5 sm:px-3 text-xs',
         tab.id === modelValue
-          ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs font-semibold'
-          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-900/50',
+          ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
+          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-900/50',
       ]"
     >
-      <component v-if="tab.icon" :is="tab.icon" class="w-3.5 h-3.5" />
+      <component v-if="tab.icon" :is="tab.icon" class="w-3.5 h-3.5 shrink-0" />
       <span>{{ tab.label }}</span>
       <span
         v-if="tab.badge !== undefined"
-        class="ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold"
+        class="ml-0.5 text-[10px] px-1.5 h-4 min-w-4 inline-flex items-center justify-center rounded-full font-mono font-bold leading-none"
         :class="
           tab.id === modelValue
-            ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+            ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300'
             : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
         "
       >

@@ -115,4 +115,24 @@ class DeviceRegistrationServiceTest {
         assertEquals("******", DeviceRegistrationService.maskToken("short"));
         assertEquals("******", DeviceRegistrationService.maskToken(null));
     }
+
+    @Test
+    void testListDevicesWithPlatformFilter() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        org.springframework.data.domain.Page<Device> emptyPage = new org.springframework.data.domain.PageImpl<>(Collections.emptyList());
+
+        when(deviceRepository.findByAppIdAndPlatformAndActive(appId, DevicePlatform.IOS, true, pageable))
+                .thenReturn(emptyPage);
+
+        var result = deviceRegistrationService.listDevices(appId, DevicePlatform.IOS, true, pageable);
+        assertNotNull(result);
+        verify(deviceRepository).findByAppIdAndPlatformAndActive(appId, DevicePlatform.IOS, true, pageable);
+
+        when(deviceRepository.findByAppIdAndPlatform(appId, DevicePlatform.ANDROID, pageable))
+                .thenReturn(emptyPage);
+
+        var result2 = deviceRegistrationService.listDevices(appId, DevicePlatform.ANDROID, null, pageable);
+        assertNotNull(result2);
+        verify(deviceRepository).findByAppIdAndPlatform(appId, DevicePlatform.ANDROID, pageable);
+    }
 }

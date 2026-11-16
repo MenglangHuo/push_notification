@@ -5,6 +5,7 @@ import com.onesignal.platform.common.exception.AppException;
 import com.onesignal.platform.common.exception.UnauthorizedException;
 import com.onesignal.platform.common.security.Argon2PasswordService;
 import com.onesignal.platform.common.security.JwtTokenProvider;
+import com.onesignal.platform.common.storage.AvatarUrlResolver;
 import com.onesignal.platform.iam.api.dto.AuthDto;
 import com.onesignal.platform.iam.domain.Membership;
 import com.onesignal.platform.iam.domain.Organization;
@@ -43,6 +44,8 @@ public class AuthService {
     private final CryptoVaultService cryptoVaultService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final AuditLogService auditLogService;
+    private final AvatarUrlResolver avatarUrlResolver;
+    private final UserProfileService userProfileService;
 
     @Value("${app.jwt.cookie-name:push_refresh_token}")
     private String cookieName;
@@ -195,9 +198,40 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthDto.UserProfileResponse getUserProfile(UUID userId) {
+        if (userId == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
         return buildUserProfile(user);
+    }
+
+    @Transactional
+    public AuthDto.UserProfileResponse updateUserProfile(UUID userId, AuthDto.UpdateProfileRequest request) {
+        if (userId == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        User updated = userProfileService.updateProfile(
+                user,
+                request.getFullName(),
+                request.getAvatarUrl(),
+                request.getRemoveAvatar()
+        );
+
+        UUID defaultOrgId = updated.getMemberships().isEmpty()
+                ? null
+                : updated.getMemberships().get(0).getOrganization().getId();
+        auditLogService.record(
+                defaultOrgId, null, updated.getId(), "USER",
+                "USER_PROFILE_UPDATED", "user", updated.getId().toString(),
+                null, Map.of("fullName", updated.getFullName(), "avatarUrl", updated.getAvatarUrl() != null ? updated.getAvatarUrl() : ""),
+                null, null
+        );
+
+        return buildUserProfile(updated);
     }
 
     private AuthDto.LoginResponse completeAuthentication(User user, HttpServletResponse response) {
@@ -297,7 +331,7 @@ public class AuthService {
                 .id(user.getId())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .avatarUrl(user.getAvatarUrl())
+                .avatarUrl(avatarUrlResolver.resolve(user.getAvatarUrl()))
                 .superAdmin(user.isSuperAdmin())
                 .mfaEnabled(mfaEnabled)
                 .organizations(orgSummaries)

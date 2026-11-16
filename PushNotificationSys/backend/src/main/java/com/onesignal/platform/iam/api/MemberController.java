@@ -43,6 +43,15 @@ public class MemberController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{membershipId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<MemberDto.MemberResponse> updateMemberProfile(
+            @PathVariable UUID orgId,
+            @PathVariable UUID membershipId,
+            @Valid @RequestBody MemberDto.UpdateMemberProfileRequest request) {
+        return ResponseEntity.ok(membershipService.updateMemberProfile(orgId, membershipId, request));
+    }
+
     @DeleteMapping("/{membershipId}")
     @PreAuthorize("hasPermission(#orgId, 'org', 'member:remove')")
     public ResponseEntity<Void> removeMember(

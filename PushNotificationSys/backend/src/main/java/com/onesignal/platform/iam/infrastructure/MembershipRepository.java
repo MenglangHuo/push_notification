@@ -18,8 +18,14 @@ public interface MembershipRepository extends JpaRepository<Membership, UUID> {
 
     @Query("SELECT m FROM Membership m " +
            "JOIN FETCH m.user u " +
+           "JOIN FETCH m.organization o " +
            "LEFT JOIN FETCH m.roleAssignments ra " +
            "LEFT JOIN FETCH ra.role r " +
            "WHERE m.organization.id = :orgId")
     List<Membership> findAllByOrganizationIdWithRoles(@Param("orgId") UUID orgId);
+
+    @Query("SELECT m FROM Membership m " +
+           "JOIN FETCH m.organization o " +
+           "WHERE m.user.id IN :userIds")
+    List<Membership> findAllByUserIdsWithOrganization(@Param("userIds") java.util.Collection<UUID> userIds);
 }

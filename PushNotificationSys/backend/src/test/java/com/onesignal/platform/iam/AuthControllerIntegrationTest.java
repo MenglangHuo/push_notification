@@ -50,12 +50,17 @@ class AuthControllerIntegrationTest {
     @Autowired
     private Argon2PasswordService passwordEncoder;
 
+    @Autowired
+    private com.onesignal.platform.iam.infrastructure.UserMfaRepository userMfaRepository;
+
     @BeforeEach
     void setupAdminUser() {
         // Ensure the seeded admin user exists and has a known hash for Password123!
         User admin = userRepository.findByEmail("admin@pushnotify.local").orElse(null);
         if (admin != null) {
             admin.setPasswordHash(passwordEncoder.encode("Password123!"));
+            userMfaRepository.deleteByUserId(admin.getId());
+            admin.setMfa(null);
             userRepository.save(admin);
         }
     }

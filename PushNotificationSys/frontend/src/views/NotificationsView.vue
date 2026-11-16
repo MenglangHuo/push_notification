@@ -11,23 +11,32 @@ import {
 import BaseButton from '@/components/common/BaseButton.vue'
 import BaseInput from '@/components/common/BaseInput.vue'
 import CustomSelect, { type SelectOption } from '@/components/common/CustomSelect.vue'
+import CustomTable, { type TableColumn } from '@/components/common/CustomTable.vue'
 import TablePagination from '@/components/common/TablePagination.vue'
 import ModernModal from '@/components/common/ModernModal.vue'
 import {
   Activity,
   AlertCircle,
   BellRing,
+  Calendar,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
   Eye,
   Filter,
+  Globe,
+  Image as ImageIcon,
   Layers,
   Plus,
   RefreshCw,
   Search,
   Send,
+  Smartphone,
   Sparkles,
+  Users,
   XCircle,
+  Zap,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -43,6 +52,7 @@ const notifications = ref<NotificationSummary[]>([])
 const isLoading = ref<boolean>(false)
 const searchQuery = ref<string>('')
 const statusFilter = ref<string>('all')
+const copiedId = ref<string | null>(null)
 
 // Pagination state
 const currentPage = ref<number>(1)
@@ -56,13 +66,200 @@ const activeNotification = ref<NotificationSummary | null>(null)
 const deliveryLogs = ref<DeliveryLogSummary[]>([])
 const isLoadingLogs = ref<boolean>(false)
 
+// Table Columns Definition
+const tableColumns = ref<TableColumn[]>([
+  {
+    key: 'message',
+    label: 'Message & Content',
+    width: 380,
+    minWidth: 260,
+    visible: true,
+    resizable: true,
+  },
+  {
+    key: 'targeting',
+    label: 'Target Audience',
+    width: 140,
+    minWidth: 120,
+    visible: true,
+    resizable: true,
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    width: 130,
+    minWidth: 110,
+    visible: true,
+    resizable: true,
+  },
+  {
+    key: 'recipients',
+    label: 'Recipients',
+    width: 110,
+    minWidth: 90,
+    visible: true,
+    resizable: true,
+    align: 'right',
+  },
+  {
+    key: 'deliveryRate',
+    label: 'Delivery Rate',
+    width: 150,
+    minWidth: 120,
+    visible: true,
+    resizable: true,
+    align: 'right',
+  },
+  {
+    key: 'dispatchedAt',
+    label: 'Dispatched At',
+    width: 170,
+    minWidth: 130,
+    visible: true,
+    resizable: true,
+  },
+  {
+    key: 'action',
+    label: 'Action',
+    width: 100,
+    minWidth: 90,
+    visible: true,
+    resizable: false,
+    align: 'right',
+  },
+])
+
+// Corrected status options matching backend domain NotificationStatus
 const statusOptions: SelectOption[] = [
   { label: 'All Statuses', value: 'all' },
-  { label: 'Delivered', value: 'DELIVERED', dotColor: 'bg-emerald-500' },
-  { label: 'Sent', value: 'SENT', dotColor: 'bg-indigo-500' },
-  { label: 'Pending', value: 'PENDING', dotColor: 'bg-amber-500' },
+  { label: 'Completed', value: 'COMPLETED', dotColor: 'bg-emerald-500' },
+  { label: 'Processing', value: 'PROCESSING', dotColor: 'bg-indigo-500' },
+  { label: 'Queued', value: 'QUEUED', dotColor: 'bg-amber-500' },
+  { label: 'Scheduled', value: 'SCHEDULED', dotColor: 'bg-sky-500' },
   { label: 'Failed', value: 'FAILED', dotColor: 'bg-rose-500' },
+  { label: 'Cancelled', value: 'CANCELLED', dotColor: 'bg-slate-400' },
 ]
+
+function getStatusBadge(status: string) {
+  const s = status?.toUpperCase()
+  switch (s) {
+    case 'COMPLETED':
+      return {
+        label: 'Completed',
+        dot: 'bg-emerald-500',
+        pill: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20',
+      }
+    case 'PROCESSING':
+      return {
+        label: 'Processing',
+        dot: 'bg-indigo-500 animate-pulse',
+        pill: 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20',
+      }
+    case 'QUEUED':
+      return {
+        label: 'Queued',
+        dot: 'bg-amber-500',
+        pill: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
+      }
+    case 'SCHEDULED':
+      return {
+        label: 'Scheduled',
+        dot: 'bg-sky-500',
+        pill: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-500/20',
+      }
+    case 'FAILED':
+      return {
+        label: 'Failed',
+        dot: 'bg-rose-500',
+        pill: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/20',
+      }
+    case 'CANCELLED':
+      return {
+        label: 'Cancelled',
+        dot: 'bg-slate-400',
+        pill: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+      }
+    case 'DRAFT':
+      return {
+        label: 'Draft',
+        dot: 'bg-amber-400',
+        pill: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/20',
+      }
+    default:
+      return {
+        label: status || 'Unknown',
+        dot: 'bg-slate-400',
+        pill: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+      }
+  }
+}
+
+function getTargetMeta(type: string) {
+  switch (type) {
+    case 'ALL':
+      return {
+        label: 'Broadcast',
+        icon: Globe,
+        badge: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800/50',
+      }
+    case 'SEGMENT':
+      return {
+        label: 'Segment',
+        icon: Filter,
+        badge: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800/50',
+      }
+    case 'DEVICE_IDS':
+      return {
+        label: 'Device Tokens',
+        icon: Smartphone,
+        badge: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/50',
+      }
+    case 'EXTERNAL_USER_IDS':
+      return {
+        label: 'User Accounts',
+        icon: Users,
+        badge: 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200/80 dark:border-sky-800/50',
+      }
+    default:
+      return {
+        label: type || 'Direct',
+        icon: Send,
+        badge: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+      }
+  }
+}
+
+function formatDateTime(isoString: string) {
+  if (!isoString) return { relative: 'Just now', full: '' }
+  const date = new Date(isoString)
+  const full = date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  const now = Date.now()
+  const diffSec = Math.floor((now - date.getTime()) / 1000)
+  if (diffSec < 60) return { relative: 'Just now', full }
+  if (diffSec < 3600) return { relative: `${Math.floor(diffSec / 60)}m ago`, full }
+  if (diffSec < 86400) return { relative: `${Math.floor(diffSec / 3600)}h ago`, full }
+  return { relative: `${Math.floor(diffSec / 86400)}d ago`, full }
+}
+
+async function copyId(id: string) {
+  try {
+    await navigator.clipboard.writeText(id)
+    copiedId.value = id
+    setTimeout(() => {
+      if (copiedId.value === id) copiedId.value = null
+    }, 2000)
+    toastStore.success('Copied', `Notification ID copied to clipboard`)
+  } catch (err) {
+    console.error('Copy failed', err)
+  }
+}
 
 async function loadNotifications() {
   if (!appId.value) return
@@ -80,55 +277,72 @@ async function loadNotifications() {
     // Fallback demo items if backend has no records
     notifications.value = [
       {
-        id: 'notif_90823412',
+        id: 'dbb64591-9cc0-4faf-b9bc-ae1d9cf87be7',
         appId: appId.value,
-        title: 'Flash Sale: 50% Off Electronics Weekend',
-        body: 'Hurry! Limited stock available on top electronics deals right now.',
-        status: 'COMPLETED',
-        targetType: 'ALL',
-        targetPayload: {},
-        customData: {},
-        priority: 'HIGH',
-        sentCount: 5400,
-        deliveredCount: 5280,
-        failedCount: 120,
-        openedCount: 1890,
-        createdAt: new Date(Date.now() - 7200000).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 'notif_90823413',
-        appId: appId.value,
-        title: 'Account Security Alert: New Login from Paris',
-        body: 'Was this you? Review your active sessions to keep your account safe.',
+        title: 'Test Push for Google Pixel 8 Pro ⚡',
+        body: 'Hello from Admin Playground! Testing push delivery to iOS.',
         status: 'COMPLETED',
         targetType: 'DEVICE_IDS',
         targetPayload: {},
         customData: {},
         priority: 'HIGH',
-        sentCount: 1200,
-        deliveredCount: 1195,
-        failedCount: 5,
-        openedCount: 740,
-        createdAt: new Date(Date.now() - 90000000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString(),
+        sentCount: 3,
+        deliveredCount: 2,
+        failedCount: 1,
+        openedCount: 1,
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        updatedAt: new Date(Date.now() - 1800000).toISOString(),
       },
       {
-        id: 'notif_90823414',
+        id: 'f4fc3c00-f7ce-443c-be19-28898f7b6d8f',
         appId: appId.value,
-        title: 'Scheduled Maintenance Window Notice',
-        body: 'Platform maintenance scheduled for Sunday at 02:00 UTC.',
-        status: 'QUEUED',
-        targetType: 'SEGMENT',
+        title: 'Test Push for Google Pixel 8 Pro ⚡',
+        body: 'Hello from Admin Playground! Testing push delivery to ANDROID.',
+        status: 'PROCESSING',
+        targetType: 'DEVICE_IDS',
         targetPayload: {},
         customData: {},
-        priority: 'NORMAL',
+        priority: 'HIGH',
         sentCount: 0,
         deliveredCount: 0,
         failedCount: 0,
         openedCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date(Date.now() - 7200000).toISOString(),
+        updatedAt: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        id: 'a40fb848-a4e3-433f-96f8-594065cb8c98',
+        appId: appId.value,
+        title: 'Flash Sale Alert! ⚡',
+        body: 'Welcome to the Admin Playground. This is a real native desktop push!',
+        status: 'COMPLETED',
+        targetType: 'DEVICE_IDS',
+        targetPayload: {},
+        customData: {},
+        priority: 'HIGH',
+        sentCount: 2,
+        deliveredCount: 2,
+        failedCount: 0,
+        openedCount: 2,
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 86000000).toISOString(),
+      },
+      {
+        id: '938b566d-cea7-438d-8856-35921d116a34',
+        appId: appId.value,
+        title: 'Exclusive 50% Off VIP Weekend! ⚡',
+        body: 'Hey VIP, use code PLAYGROUND50 at checkout before midnight.',
+        status: 'COMPLETED',
+        targetType: 'DEVICE_IDS',
+        targetPayload: {},
+        customData: {},
+        priority: 'HIGH',
+        sentCount: 2,
+        deliveredCount: 2,
+        failedCount: 0,
+        openedCount: 1,
+        createdAt: new Date(Date.now() - 90000000).toISOString(),
+        updatedAt: new Date(Date.now() - 89000000).toISOString(),
       },
     ]
     totalElements.value = notifications.value.length
@@ -138,18 +352,29 @@ async function loadNotifications() {
   }
 }
 
+// Fixed Status Filtering Logic
 const filteredNotifications = computed(() => {
   let list = notifications.value
   if (statusFilter.value !== 'all') {
-    list = list.filter((n) => n.status === statusFilter.value)
+    const target = statusFilter.value.toUpperCase()
+    list = list.filter((n) => {
+      const s = n.status?.toUpperCase()
+      if (s === target) return true
+      // Support friendly aliases
+      if (target === 'COMPLETED' && (s === 'DELIVERED' || s === 'SENT')) return true
+      if (target === 'PROCESSING' && (s === 'PENDING' || s === 'QUEUED')) return true
+      return false
+    })
   }
+
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter(
       (n) =>
-        n.title.toLowerCase().includes(q) ||
-        n.id.toLowerCase().includes(q) ||
-        n.body?.toLowerCase().includes(q),
+        n.title?.toLowerCase().includes(q) ||
+        n.id?.toLowerCase().includes(q) ||
+        n.body?.toLowerCase().includes(q) ||
+        n.targetType?.toLowerCase().includes(q),
     )
   }
   return list
@@ -180,12 +405,10 @@ function handlePerPageChange(newSize: number) {
   loadNotifications()
 }
 
-watch(
-  () => route.params.appId,
-  () => {
-    loadNotifications()
-  },
-)
+watch([appId, () => authStore.currentAppId, () => route.params.appId], () => {
+  currentPage.value = 1
+  loadNotifications()
+})
 
 onMounted(() => {
   loadNotifications()
@@ -199,9 +422,9 @@ onMounted(() => {
       <div>
         <div class="flex items-center gap-2.5">
           <div
-            class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/90 dark:border-indigo-500/30 shadow-xs shrink-0"
+            class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/90 dark:border-indigo-500/30 shadow-xs shrink-0"
           >
-            <BellRing class="w-4 h-4" />
+            <BellRing class="w-5 h-5" />
           </div>
           <div>
             <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -210,7 +433,7 @@ onMounted(() => {
                 {{ totalElements }} Messages
               </span>
             </h1>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+            <p class="text-xs text-slate-500 dark:text-slate-400">
               Dispatched campaigns, real-time receipt confirmations, and message delivery audit logs
             </p>
           </div>
@@ -239,171 +462,177 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Filter Toolbar -->
-    <div
-      class="bg-white dark:bg-slate-900/90 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+    <!-- Enhanced CustomTable Component with Resizing, Column Visibility & Density Controls -->
+    <CustomTable
+      table-id="notifications-queue"
+      :columns="tableColumns"
+      :items="filteredNotifications"
+      :is-loading="isLoading"
+      empty-message="No push notifications found matching your search and status criteria."
+      :allow-resize="true"
+      :allow-column-toggle="true"
+      :allow-density-toggle="true"
     >
-      <div class="flex flex-1 items-center gap-2 max-w-md">
-        <BaseInput
-          v-model="searchQuery"
-          placeholder="Filter by title, body, or notification ID..."
-          size="sm"
-          :icon="Search"
-        />
-      </div>
+      <!-- Toolbar Left: Search Input -->
+      <template #toolbar-left>
+        <div class="max-w-md">
+          <BaseInput
+            v-model="searchQuery"
+            placeholder="Filter by title, body, or notification ID..."
+            size="sm"
+            :icon="Search"
+          />
+        </div>
+      </template>
 
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
-        <CustomSelect
-          v-model="statusFilter"
-          :options="statusOptions"
-          size="sm"
-          button-class="w-36"
-        />
-      </div>
-    </div>
+      <!-- Toolbar Middle: Fixed Status Filter Dropdown -->
+      <template #toolbar-middle>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Status:</span>
+          <CustomSelect
+            v-model="statusFilter"
+            :options="statusOptions"
+            size="sm"
+            button-class="w-36"
+          />
+        </div>
+      </template>
 
-    <!-- Notifications Table Card -->
-    <div
-      class="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-xl overflow-hidden transition-colors"
-    >
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
-          <thead>
-            <tr
-              class="bg-slate-50/70 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+      <!-- Custom Column Cell: Message & Content -->
+      <template #cell-message="{ row }">
+        <div class="space-y-1 py-0.5">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-slate-900 dark:text-white truncate" :title="row.title">
+              {{ row.title }}
+            </span>
+            <span
+              v-if="row.priority === 'HIGH'"
+              class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-900/50 shrink-0 inline-flex items-center gap-0.5"
             >
-              <th class="py-3 px-4">Message & Title</th>
-              <th class="py-3 px-4">Targeting</th>
-              <th class="py-3 px-4">Status</th>
-              <th class="py-3 px-4 text-right">Recipients</th>
-              <th class="py-3 px-4 text-right">Delivery Rate</th>
-              <th class="py-3 px-4">Dispatched At</th>
-              <th class="py-3 px-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-            <tr v-if="isLoading" class="animate-pulse">
-              <td colspan="7" class="py-8 text-center text-slate-400">Loading notification queue...</td>
-            </tr>
-
-            <tr v-else-if="filteredNotifications.length === 0">
-              <td colspan="7" class="py-8 text-center text-slate-400">
-                No notifications found matching your filter criteria.
-              </td>
-            </tr>
-
-            <tr
-              v-for="notif in filteredNotifications"
-              :key="notif.id"
-              class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+              <Zap class="w-2.5 h-2.5" />
+              High
+            </span>
+            <span
+              v-if="row.imageUrl"
+              class="p-0.5 rounded text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 shrink-0"
+              title="Image banner attached"
             >
-              <!-- Title & Body preview -->
-              <td class="py-3.5 px-4 max-w-xs">
-                <div class="font-bold text-slate-900 dark:text-white truncate">
-                  {{ notif.title }}
-                </div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  {{ notif.body || 'No message body provided' }}
-                </div>
-                <span class="font-mono text-[10px] text-indigo-500 dark:text-indigo-400">
-                  {{ notif.id }}
-                </span>
-              </td>
+              <ImageIcon class="w-3 h-3" />
+            </span>
+          </div>
 
-              <!-- Target Type -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                <span
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
-                >
-                  {{ notif.targetType }}
-                </span>
-              </td>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug" :title="row.body">
+            {{ row.body || 'No message body provided' }}
+          </p>
 
-              <!-- Status Badge -->
-              <td class="py-3.5 px-4 whitespace-nowrap">
-                <span
-                  v-if="notif.status === 'COMPLETED'"
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 inline-flex items-center gap-1"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Completed
-                </span>
-                <span
-                  v-else-if="notif.status === 'PROCESSING' || notif.status === 'QUEUED'"
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 inline-flex items-center gap-1"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                  Processing
-                </span>
-                <span
-                  v-else-if="notif.status === 'DRAFT'"
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 inline-flex items-center gap-1"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                  Draft
-                </span>
-                <span
-                  v-else
-                  class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20 inline-flex items-center gap-1"
-                >
-                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  Failed
-                </span>
-              </td>
+          <div class="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+            <span class="truncate max-w-[200px]">{{ row.id }}</span>
+            <button
+              type="button"
+              @click.stop="copyId(row.id)"
+              class="hover:text-indigo-500 transition cursor-pointer p-0.5 rounded"
+              title="Copy Notification ID"
+            >
+              <Check v-if="copiedId === row.id" class="w-2.5 h-2.5 text-emerald-500" />
+              <Copy v-else class="w-2.5 h-2.5" />
+            </button>
+          </div>
+        </div>
+      </template>
 
-              <!-- Recipients -->
-              <td class="py-3.5 px-4 text-right font-mono font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                {{ (notif.sentCount || notif.deliveredCount || 0).toLocaleString() }}
-              </td>
+      <!-- Custom Column Cell: Targeting -->
+      <template #cell-targeting="{ row }">
+        <span
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border"
+          :class="getTargetMeta(row.targetType).badge"
+        >
+          <component :is="getTargetMeta(row.targetType).icon" class="w-3 h-3" />
+          <span>{{ getTargetMeta(row.targetType).label }}</span>
+        </span>
+      </template>
 
-              <!-- Delivery Rate -->
-              <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                <div class="flex items-center justify-end gap-2">
-                  <span class="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                    {{ notif.sentCount > 0 ? Math.round((notif.deliveredCount / notif.sentCount) * 100) : 100 }}%
-                  </span>
-                  <div class="w-12 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div
-                      class="h-full bg-emerald-500 rounded-full"
-                      :style="{ width: `${notif.sentCount > 0 ? (notif.deliveredCount / notif.sentCount) * 100 : 100}%` }"
-                    ></div>
-                  </div>
-                </div>
-              </td>
+      <!-- Custom Column Cell: Status -->
+      <template #cell-status="{ row }">
+        <span
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border"
+          :class="getStatusBadge(row.status).pill"
+        >
+          <span class="w-1.5 h-1.5 rounded-full" :class="getStatusBadge(row.status).dot"></span>
+          <span>{{ getStatusBadge(row.status).label }}</span>
+        </span>
+      </template>
 
-              <!-- Date -->
-              <td class="py-3.5 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap text-[11px]">
-                {{ new Date(notif.createdAt).toLocaleString() }}
-              </td>
+      <!-- Custom Column Cell: Recipients -->
+      <template #cell-recipients="{ row }">
+        <div class="flex items-center justify-end gap-1 font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">
+          <Users class="w-3 h-3 text-slate-400" />
+          <span>{{ (row.sentCount || row.deliveredCount || 0).toLocaleString() }}</span>
+        </div>
+      </template>
 
-              <!-- Action -->
-              <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                <BaseButton
-                  variant="outline"
-                  size="xs"
-                  :icon="Eye"
-                  @click="openDetailModal(notif)"
-                >
-                  Details
-                </BaseButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- Custom Column Cell: Delivery Rate -->
+      <template #cell-deliveryRate="{ row }">
+        <div class="flex flex-col items-end gap-1">
+          <div class="flex items-center gap-2">
+            <span class="font-mono font-bold text-xs" :class="row.deliveredCount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'">
+              {{ row.sentCount > 0 ? Math.round((row.deliveredCount / row.sentCount) * 100) : 100 }}%
+            </span>
+            <div class="w-12 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+              <div
+                class="h-full rounded-full transition-all duration-300"
+                :class="row.failedCount > 0 && row.deliveredCount === 0 ? 'bg-rose-500' : 'bg-emerald-500'"
+                :style="{ width: `${row.sentCount > 0 ? (row.deliveredCount / row.sentCount) * 100 : 100}%` }"
+              ></div>
+            </div>
+          </div>
 
-      <!-- Table Pagination Component -->
-      <TablePagination
-        :current-page="currentPage"
-        :last-page="totalPages"
-        :total="totalElements"
-        :per-page="perPage"
-        item-label="notifications"
-        @change-page="handlePageChange"
-        @change-per-page="handlePerPageChange"
-      />
-    </div>
+          <div class="text-[9px] font-mono text-slate-400">
+            <span v-if="row.failedCount > 0" class="text-rose-500 font-semibold mr-1">
+              {{ row.failedCount }} failed
+            </span>
+            <span>{{ row.deliveredCount || 0 }} delivered</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Custom Column Cell: Dispatched At -->
+      <template #cell-dispatchedAt="{ row }">
+        <div class="space-y-0.5">
+          <div class="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+            <Clock class="w-3 h-3 text-slate-400" />
+            <span>{{ formatDateTime(row.createdAt).relative }}</span>
+          </div>
+          <div class="text-[10px] text-slate-400 font-mono">
+            {{ formatDateTime(row.createdAt).full }}
+          </div>
+        </div>
+      </template>
+
+      <!-- Custom Column Cell: Action -->
+      <template #cell-action="{ row }">
+        <BaseButton
+          variant="outline"
+          size="xs"
+          :icon="Eye"
+          @click="openDetailModal(row)"
+        >
+          Details
+        </BaseButton>
+      </template>
+
+      <!-- Table Footer: Pagination Component -->
+      <template #footer>
+        <TablePagination
+          :current-page="currentPage"
+          :last-page="totalPages"
+          :total="totalElements"
+          :per-page="perPage"
+          item-label="notifications"
+          @change-page="handlePageChange"
+          @change-per-page="handlePerPageChange"
+        />
+      </template>
+    </CustomTable>
 
     <!-- Notification Details Modal using ModernModal -->
     <ModernModal
@@ -456,6 +685,10 @@ onMounted(() => {
           <div class="text-xs sm:text-sm">
             <span class="text-slate-400 font-medium">Body:</span>
             <span class="ml-2 text-slate-700 dark:text-slate-300 leading-relaxed">{{ activeNotification.body }}</span>
+          </div>
+          <div v-if="activeNotification.imageUrl" class="pt-2">
+            <span class="text-slate-400 text-xs font-medium block mb-1">Image Banner:</span>
+            <img :src="activeNotification.imageUrl" class="h-28 rounded-xl object-cover border border-slate-200 dark:border-slate-800" />
           </div>
         </div>
 

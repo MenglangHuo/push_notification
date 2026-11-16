@@ -31,28 +31,34 @@ public class TenantContextFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         try {
-            UUID orgId = parseUuid(request.getHeader("X-Org-Id"));
-            UUID appId = parseUuid(request.getHeader("X-App-Id"));
-
             String uri = request.getRequestURI();
-            if (orgId == null) {
-                Matcher orgMatcher = ORG_URI_PATTERN.matcher(uri);
-                if (orgMatcher.find()) {
-                    orgId = parseUuid(orgMatcher.group(1));
-                }
+            UUID orgId = null;
+            UUID appId = null;
+
+            // 1. Canonical source of truth: URI path patterns (/apps/{appId} or /organizations/{orgId})
+            Matcher appMatcher = APP_URI_PATTERN.matcher(uri);
+            if (appMatcher.find()) {
+                appId = parseUuid(appMatcher.group(1));
             }
 
+            Matcher orgMatcher = ORG_URI_PATTERN.matcher(uri);
+            if (orgMatcher.find()) {
+                orgId = parseUuid(orgMatcher.group(1));
+            }
+
+            // 2. Fallbacks for non-URI-scoped requests
             if (appId == null) {
-                Matcher appMatcher = APP_URI_PATTERN.matcher(uri);
-                if (appMatcher.find()) {
-                    appId = parseUuid(appMatcher.group(1));
-                } else if (request.getAttribute("authenticatedAppId") instanceof UUID attrAppId) {
+                appId = parseUuid(request.getHeader("X-App-Id"));
+                if (appId == null && request.getAttribute("authenticatedAppId") instanceof UUID attrAppId) {
                     appId = attrAppId;
                 }
             }
 
-            if (orgId == null && request.getAttribute("authenticatedOrgId") instanceof UUID attrOrgId) {
-                orgId = attrOrgId;
+            if (orgId == null) {
+                orgId = parseUuid(request.getHeader("X-Org-Id"));
+                if (orgId == null && request.getAttribute("authenticatedOrgId") instanceof UUID attrOrgId) {
+                    orgId = attrOrgId;
+                }
             }
 
             if (appId != null) {

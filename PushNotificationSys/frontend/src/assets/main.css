@@ -137,6 +137,17 @@ html.dark .custom-modal-scroll {
   scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
 
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
 @keyframes pulse-subtle {
   0%,
   100% {

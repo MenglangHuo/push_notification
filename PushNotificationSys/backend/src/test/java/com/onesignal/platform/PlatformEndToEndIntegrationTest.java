@@ -50,6 +50,9 @@ class PlatformEndToEndIntegrationTest {
     @Autowired
     private Argon2PasswordService passwordEncoder;
 
+    @Autowired
+    private com.onesignal.platform.iam.infrastructure.UserMfaRepository userMfaRepository;
+
     private String accessToken;
     private final UUID seededAppId = UUID.fromString("11111111-2222-3333-4444-555555555551");
     private final String seededRestApiKey = "os_live_demo1234567890abcdef1234567890";
@@ -60,6 +63,8 @@ class PlatformEndToEndIntegrationTest {
         User admin = userRepository.findByEmail("admin@pushnotify.local").orElse(null);
         if (admin != null) {
             admin.setPasswordHash(passwordEncoder.encode("Password123!"));
+            userMfaRepository.deleteByUserId(admin.getId());
+            admin.setMfa(null);
             userRepository.save(admin);
         }
 

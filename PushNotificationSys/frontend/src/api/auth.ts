@@ -51,4 +51,13 @@ export const authApi = {
     const res = await apiClient.get<UserProfile>('/auth/me')
     return res.data
   },
+
+  async updateProfile(payload: {
+    fullName?: string
+    avatarUrl?: string | null
+    removeAvatar?: boolean
+  }): Promise<UserProfile> {
+    const res = await apiClient.put<UserProfile>('/auth/me/profile', payload)
+    return res.data
+  },
 }

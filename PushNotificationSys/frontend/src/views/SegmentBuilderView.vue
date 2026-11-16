@@ -17,13 +17,16 @@ import {
   Apple,
   ArrowLeft,
   CheckCircle2,
+  Clock,
   Filter,
   Globe,
+  Layers,
   Plus,
   RefreshCw,
   Save,
   Smartphone,
   Sparkles,
+  Tag,
   Trash2,
   Users,
 } from 'lucide-vue-next'
@@ -53,10 +56,16 @@ const errorMessage = ref('')
 const fieldOptions: SelectOption[] = [
   { label: 'Device Tag (Key / Value)', value: 'tag' },
   { label: 'Platform (Android / iOS / Web)', value: 'platform' },
-  { label: 'Language Code (e.g. en, km)', value: 'language' },
   { label: 'Activity Window (Days)', value: 'last_active_days' },
+  { label: 'Language Code (e.g. en, km)', value: 'language' },
   { label: 'App Version', value: 'app_version' },
   { label: 'Device Model', value: 'device_model' },
+]
+
+const platformOptions: SelectOption[] = [
+  { label: 'Android (Google Play / FCM)', value: 'ANDROID' },
+  { label: 'Apple iOS (APNs)', value: 'IOS' },
+  { label: 'Web Push (VAPID / Browsers)', value: 'WEB' },
 ]
 
 function getOperatorOptions(field: string): SelectOption[] {
@@ -86,6 +95,63 @@ function getOperatorOptions(field: string): SelectOption[] {
     { label: 'Does Not Equal (≠)', value: 'NEQ' },
     { label: 'Contains', value: 'CONTAINS' },
   ]
+}
+
+function onFieldChange(rule: FilterRule) {
+  if (rule.field === 'platform') {
+    rule.op = 'EQ'
+    rule.value = 'ANDROID'
+    delete rule.tagKey
+  } else if (rule.field === 'tag') {
+    rule.op = 'EQ'
+    if (!rule.tagKey) rule.tagKey = 'tier'
+    rule.value = rule.value || 'VIP'
+  } else if (rule.field === 'last_active_days') {
+    rule.op = 'LTE'
+    rule.value = rule.value || 30
+    delete rule.tagKey
+  } else {
+    delete rule.tagKey
+    if (!rule.value) rule.value = ''
+  }
+  triggerEstimate()
+}
+
+interface SegmentPreset {
+  name: string
+  description: string
+  rules: FilterRule[]
+}
+
+const presets: SegmentPreset[] = [
+  {
+    name: 'VIP High-Value Users',
+    description: 'Customers tagged with VIP loyalty tier',
+    rules: [{ field: 'tag', tagKey: 'tier', op: 'EQ', value: 'VIP' }],
+  },
+  {
+    name: 'Android Power Users',
+    description: 'All active registered Android smartphones and tablets',
+    rules: [{ field: 'platform', op: 'EQ', value: 'ANDROID' }],
+  },
+  {
+    name: 'Apple iOS Users',
+    description: 'Subscribers on iPhone and iPad running APNs',
+    rules: [{ field: 'platform', op: 'EQ', value: 'IOS' }],
+  },
+  {
+    name: 'Dormant Re-Engagement (30d+)',
+    description: 'Subscribers who have been inactive for at least 30 days',
+    rules: [{ field: 'last_active_days', op: 'GTE', value: 30 }],
+  },
+]
+
+function applyPreset(p: SegmentPreset) {
+  form.name = p.name
+  form.description = p.description
+  form.rules = JSON.parse(JSON.stringify(p.rules))
+  triggerEstimate()
+  toastStore.info('Preset Applied', `Loaded template "${p.name}"`)
 }
 
 function addRule() {
@@ -271,6 +337,28 @@ onMounted(() => {
           </div>
         </div>
 
+        <!-- Quick Starter Templates -->
+        <div class="bg-white dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Sparkles class="w-3.5 h-3.5 text-indigo-500" />
+              Quick Cohort Presets
+            </span>
+            <span class="text-[10px] text-slate-400">Click to load standard segment rules</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="preset in presets"
+              :key="preset.name"
+              type="button"
+              @click="applyPreset(preset)"
+              class="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-500/30 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <span>{{ preset.name }}</span>
+            </button>
+          </div>
+        </div>
+
         <!-- Rules Engine -->
         <div class="bg-white dark:bg-slate-900/90 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -309,34 +397,63 @@ onMounted(() => {
             <div
               v-for="(rule, idx) in form.rules"
               :key="idx"
-              class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-3"
+              class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-3"
             >
               <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                  Condition #{{ idx + 1 }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
+                    Condition #{{ idx + 1 }}
+                  </span>
+                  <span
+                    v-if="rule.field === 'platform'"
+                    class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"
+                  >
+                    Platform Rule
+                  </span>
+                  <span
+                    v-else-if="rule.field === 'tag'"
+                    class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20"
+                  >
+                    User Tag Rule
+                  </span>
+                  <span
+                    v-else-if="rule.field === 'last_active_days'"
+                    class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20"
+                  >
+                    Recency Window
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   @click="removeRule(idx)"
                   class="text-slate-400 hover:text-rose-500 p-1 cursor-pointer transition"
+                  title="Remove Condition"
                 >
                   <Trash2 class="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <!-- Field -->
+              <!-- Tag Layout: Field | Tag Key | Operator | Tag Value -->
+              <div v-if="rule.field === 'tag'" class="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                 <div>
                   <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Field</label>
                   <CustomSelect
                     v-model="rule.field"
                     :options="fieldOptions"
                     size="sm"
-                    @change="triggerEstimate"
+                    @change="onFieldChange(rule)"
                   />
                 </div>
-
-                <!-- Operator -->
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Tag Key</label>
+                  <input
+                    v-model="rule.tagKey"
+                    placeholder="e.g. tier, plan, country"
+                    class="w-full bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-indigo-500 font-mono h-[34px]"
+                    @input="triggerEstimate"
+                  />
+                </div>
                 <div>
                   <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Operator</label>
                   <CustomSelect
@@ -346,27 +463,82 @@ onMounted(() => {
                     @change="triggerEstimate"
                   />
                 </div>
-
-                <!-- Value -->
                 <div>
-                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Value</label>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                    {{ rule.op === 'EXISTS' ? 'Value (N/A)' : 'Tag Value' }}
+                  </label>
                   <BaseInput
                     v-model="rule.value"
-                    placeholder="e.g. VIP or Android"
+                    :disabled="rule.op === 'EXISTS'"
+                    placeholder="e.g. VIP or gold,platinum"
                     size="sm"
                     @input="triggerEstimate"
                   />
                 </div>
               </div>
 
-              <!-- Tag Key input if field === 'tag' -->
-              <div v-if="rule.field === 'tag'" class="pt-1">
-                <input
-                  v-model="rule.tagKey"
-                  placeholder="Tag Key (e.g. loyalty_tier, city, plan)"
-                  class="w-full bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
-                  @input="triggerEstimate"
-                />
+              <!-- Platform Layout: Field | Operator | Dedicated Platform Select -->
+              <div v-else-if="rule.field === 'platform'" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Field</label>
+                  <CustomSelect
+                    v-model="rule.field"
+                    :options="fieldOptions"
+                    size="sm"
+                    @change="onFieldChange(rule)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Operator</label>
+                  <CustomSelect
+                    v-model="rule.op"
+                    :options="getOperatorOptions(rule.field)"
+                    size="sm"
+                    @change="triggerEstimate"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Device Platform</label>
+                  <CustomSelect
+                    v-model="rule.value"
+                    :options="platformOptions"
+                    size="sm"
+                    @change="triggerEstimate"
+                  />
+                </div>
+              </div>
+
+              <!-- Standard / Recency Layout -->
+              <div v-else class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Field</label>
+                  <CustomSelect
+                    v-model="rule.field"
+                    :options="fieldOptions"
+                    size="sm"
+                    @change="onFieldChange(rule)"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">Operator</label>
+                  <CustomSelect
+                    v-model="rule.op"
+                    :options="getOperatorOptions(rule.field)"
+                    size="sm"
+                    @change="triggerEstimate"
+                  />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                    {{ rule.field === 'last_active_days' ? 'Days Window' : 'Value' }}
+                  </label>
+                  <BaseInput
+                    v-model="rule.value"
+                    :placeholder="rule.field === 'last_active_days' ? 'e.g. 30' : 'e.g. value'"
+                    size="sm"
+                    @input="triggerEstimate"
+                  />
+                </div>
               </div>
             </div>
           </div>

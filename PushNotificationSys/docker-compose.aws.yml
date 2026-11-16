@@ -1,0 +1,222 @@
+# ==============================================================================
+# Multi-Tenant Push Notification Engine - AWS Production Docker Compose
+# Tuned specifically for small-spec AWS EC2 instances (t3.micro / t3.small / t4g.small)
+# Total memory footprint under full load: ~1.5 GB RAM
+# ==============================================================================
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    container_name: push_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-push_platform}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres_password}
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=96MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "maintenance_work_mem=32MB"
+      - "-c"
+      - "effective_cache_size=192MB"
+      - "-c"
+      - "max_connections=40"
+      - "-c"
+      - "checkpoint_completion_target=0.7"
+      - "-c"
+      - "wal_buffers=4MB"
+    deploy:
+      resources:
+        limits:
+          memory: 280M
+        reservations:
+          memory: 128M
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-push_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      push_net:
+        aliases:
+          - postgres
+
+  redis:
+    image: redis:7-alpine
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    container_name: push_redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+        reservations:
+          memory: 32M
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      push_net:
+        aliases:
+          - redis
+
+  kafka:
+    image: apache/kafka:3.7.0
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    container_name: push_kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_INTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_SEGMENT_BYTES: 134217728 # 128MB per segment to save disk
+      KAFKA_LOG_RETENTION_HOURS: 24      # Retain 24h to prevent disk exhaustion
+      KAFKA_LOG_CLEANER_THREADS: 1
+      KAFKA_NUM_NETWORK_THREADS: 2
+      KAFKA_NUM_IO_THREADS: 2
+      KAFKA_JVM_PERFORMANCE_OPTS: "-Xms160m -Xmx288m -XX:+UseSerialGC"
+    deploy:
+      resources:
+        limits:
+          memory: 450M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      push_net:
+        aliases:
+          - kafka
+
+  backend:
+    image: ${BACKEND_IMAGE:-push-backend:latest}
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    container_name: push_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-push_platform}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres_password}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      UPLOAD_DIR: /app/uploads
+      UPLOAD_PROVIDER: ${UPLOAD_PROVIDER:-local}
+      UPLOAD_CDN_BASE_URL: ${UPLOAD_CDN_BASE_URL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET:-4z7x9w2v8y5k1m3p6r9t0q4s7u2w5x8z1a3c5e7g9i1k3m5o7q9s1u3w5y7z9a1b}
+      CRYPTO_MASTER_KEY: ${CRYPTO_MASTER_KEY:-k4P8q3Z1y7W2v9T0x5R8u1O3m6L9j2H5g7E0b3D6a8=}
+      MAILGUN_ENABLED: ${MAILGUN_ENABLED:-false}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+      MAILGUN_BASE_URL: ${MAILGUN_BASE_URL:-https://api.mailgun.net/v3}
+      MAILGUN_FROM_ADDRESS: ${MAILGUN_FROM_ADDRESS:-Bronx Notification <postmaster@sandbox.mailgun.org>}
+      MAILGUN_WEBHOOK_KEY: ${MAILGUN_WEBHOOK_KEY:-}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:+UseSerialGC -Xms128m -Xmx384m -XX:MaxMetaspaceSize=160m -XX:CompressedClassSpaceSize=48m -XX:+ExitOnOutOfMemoryError}
+    deploy:
+      resources:
+        limits:
+          memory: 650M
+        reservations:
+          memory: 384M
+    volumes:
+      - uploads_data:/app/uploads
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      push_net:
+        aliases:
+          - backend
+          - host.docker.internal
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-push-frontend:latest}
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/arm64}
+    container_name: push_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3001}:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      push_net:
+        aliases:
+          - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  push_net:
+    driver: bridge

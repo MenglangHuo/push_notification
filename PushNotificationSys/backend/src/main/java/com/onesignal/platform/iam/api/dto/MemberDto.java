@@ -3,6 +3,7 @@ package com.onesignal.platform.iam.api.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
 
@@ -58,8 +59,33 @@ public class MemberDto {
         private UUID userId;
         private String email;
         private String fullName;
+        private String avatarUrl;
         private String status;
+        private UUID organizationId;
+        private String organizationName;
+        private String organizationSlug;
+        private List<UserOrganizationInfo> organizations;
         private List<RoleAssignmentInfo> roleAssignments;
+    }
+
+    @Data
+    @Builder
+    public static class UserOrganizationInfo {
+        private UUID organizationId;
+        private String organizationName;
+        private String organizationSlug;
+        private String status;
+    }
+
+    @Data
+    public static class UpdateMemberProfileRequest {
+        @Size(max = 150, message = "Full name must not exceed 150 characters")
+        private String fullName;
+
+        @Size(max = 2048, message = "Avatar URL must not exceed 2048 characters")
+        private String avatarUrl;
+
+        private Boolean removeAvatar;
     }
 
     @Data

@@ -6,8 +6,17 @@ import com.onesignal.platform.apikey.api.dto.ApiKeyDto;
 import com.onesignal.platform.apikey.domain.KeyType;
 import com.onesignal.platform.app.api.dto.AppDto;
 import com.onesignal.platform.common.security.Argon2PasswordService;
+import com.onesignal.platform.app.infrastructure.AppRepository;
 import com.onesignal.platform.iam.api.dto.AuthDto;
+import com.onesignal.platform.iam.domain.MemberRoleAssignment;
+import com.onesignal.platform.iam.domain.Membership;
+import com.onesignal.platform.iam.domain.Organization;
+import com.onesignal.platform.iam.domain.Role;
 import com.onesignal.platform.iam.domain.User;
+import com.onesignal.platform.iam.infrastructure.MemberRoleAssignmentRepository;
+import com.onesignal.platform.iam.infrastructure.MembershipRepository;
+import com.onesignal.platform.iam.infrastructure.OrganizationRepository;
+import com.onesignal.platform.iam.infrastructure.RoleRepository;
 import com.onesignal.platform.iam.infrastructure.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +50,25 @@ class AppAdminControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private OrganizationRepository organizationRepository;
+
+    @Autowired
+    private MembershipRepository membershipRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private MemberRoleAssignmentRepository roleAssignmentRepository;
+
+    @Autowired
+    private AppRepository appRepository;
+
+    @Autowired
     private Argon2PasswordService passwordEncoder;
+
+    @Autowired
+    private com.onesignal.platform.iam.infrastructure.UserMfaRepository userMfaRepository;
 
     private String accessToken;
     private final UUID acmeOrgId = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
@@ -51,6 +78,8 @@ class AppAdminControllerIntegrationTest {
         User admin = userRepository.findByEmail("admin@pushnotify.local").orElse(null);
         if (admin != null) {
             admin.setPasswordHash(passwordEncoder.encode("Password123!"));
+            userMfaRepository.deleteByUserId(admin.getId());
+            admin.setMfa(null);
             userRepository.save(admin);
         }
 
@@ -89,6 +118,9 @@ class AppAdminControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(createAppReq)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.defaultServerKey.rawSecretKey").value(org.hamcrest.Matchers.startsWith("os_live_")))
+                .andExpect(jsonPath("$.defaultClientSdkKey.rawSecretKey").value(org.hamcrest.Matchers.startsWith("os_pub_")))
+                .andExpect(jsonPath("$.vapidPublicKey").isNotEmpty())
                 .andReturn();
 
         String newAppId = objectMapper.readTree(createAppResult.getResponse().getContentAsString()).get("id").asText();
@@ -132,5 +164,90 @@ class AppAdminControllerIntegrationTest {
         mockMvc.perform(delete("/admin/api/v1/apps/" + newAppId + "/api-keys/" + keyId)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("Authenticated user can fetch accessible apps list")
+    void getAccessibleApps_returnsAuthorizedApps() throws Exception {
+        mockMvc.perform(get("/admin/api/v1/users/me/accessible-apps")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .param("orgId", acmeOrgId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").isNotEmpty())
+                .andExpect(jsonPath("$[0].name").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("App-scoped member only receives assigned app from accessible-apps and gets 403 on unassigned app analytics")
+    void getAccessibleApps_appScopedMemberOnlySeesAssignedApp() throws Exception {
+        UUID allowedAppId = UUID.fromString("11111111-2222-3333-4444-555555555551");
+        AppDto.CreateAppRequest extraAppReq = new AppDto.CreateAppRequest();
+        extraAppReq.setName("Restricted App " + System.currentTimeMillis());
+        extraAppReq.setDescription("App without assignment for scoped member");
+
+        MvcResult createdExtra = mockMvc.perform(post("/admin/api/v1/organizations/" + acmeOrgId + "/apps")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(extraAppReq)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID restrictedAppId = UUID.fromString(objectMapper.readTree(createdExtra.getResponse().getContentAsString()).get("id").asText());
+
+        String scopedEmail = "scoped-test-" + System.currentTimeMillis() + "@pushnotify.local";
+        User scopedUser = userRepository.save(User.builder()
+                .email(scopedEmail)
+                .fullName("Scoped Member")
+                .passwordHash(passwordEncoder.encode("Password123!"))
+                .superAdmin(false)
+                .status("ACTIVE")
+                .build());
+
+        Organization org = organizationRepository.findById(acmeOrgId).orElseThrow();
+        Membership membership = membershipRepository.save(Membership.builder()
+                .user(scopedUser)
+                .organization(org)
+                .status("ACTIVE")
+                .build());
+        Role ownerRole = roleRepository.findById(UUID.fromString("11111111-1111-1111-1111-111111111111")).orElseThrow();
+        MemberRoleAssignment assignment = roleAssignmentRepository.save(MemberRoleAssignment.builder()
+                .membership(membership)
+                .role(ownerRole)
+                .appId(allowedAppId)
+                .build());
+
+        try {
+            AuthDto.LoginRequest loginReq = new AuthDto.LoginRequest();
+            loginReq.setEmail(scopedEmail);
+            loginReq.setPassword("Password123!");
+            MvcResult loginRes = mockMvc.perform(post("/admin/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(loginReq)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            String scopedToken = objectMapper.readTree(loginRes.getResponse().getContentAsString()).get("accessToken").asText();
+
+            mockMvc.perform(get("/admin/api/v1/users/me/accessible-apps")
+                            .header("Authorization", "Bearer " + scopedToken)
+                            .param("orgId", acmeOrgId.toString()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(allowedAppId.toString()));
+
+            mockMvc.perform(get("/admin/api/v1/apps/" + allowedAppId + "/analytics/dashboard")
+                            .header("Authorization", "Bearer " + scopedToken)
+                            .param("range", "7d"))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(get("/admin/api/v1/apps/" + restrictedAppId + "/analytics/dashboard")
+                            .header("Authorization", "Bearer " + scopedToken)
+                            .param("range", "7d"))
+                    .andExpect(status().isForbidden());
+        } finally {
+            roleAssignmentRepository.delete(assignment);
+            membershipRepository.delete(membership);
+            userRepository.delete(scopedUser);
+            appRepository.deleteById(restrictedAppId);
+        }
     }
 }

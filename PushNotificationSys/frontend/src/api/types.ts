@@ -49,12 +49,25 @@ export interface MfaDisableRequest {
   password: string
 }
 
+export interface UserOrganizationInfo {
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  status: string
+}
+
 export interface Member {
   membershipId: string
   userId: string
   email: string
   fullName: string
+  avatarUrl?: string | null
+  username?: string | null
   status: string
+  organizationId?: string
+  organizationName?: string
+  organizationSlug?: string
+  organizations?: UserOrganizationInfo[]
   roleAssignments: RoleAssignmentInfo[]
 }
 

@@ -2,6 +2,7 @@ package com.onesignal.platform.iam.api.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
 
@@ -55,6 +56,17 @@ public class AuthDto {
         private boolean superAdmin;
         private boolean mfaEnabled;
         private List<OrgMembershipSummary> organizations;
+    }
+
+    @Data
+    public static class UpdateProfileRequest {
+        @Size(max = 150, message = "Full name must not exceed 150 characters")
+        private String fullName;
+
+        @Size(max = 2048, message = "Avatar URL must not exceed 2048 characters")
+        private String avatarUrl;
+
+        private Boolean removeAvatar;
     }
 
     @Data

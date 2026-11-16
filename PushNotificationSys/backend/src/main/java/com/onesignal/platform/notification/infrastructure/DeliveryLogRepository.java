@@ -4,8 +4,11 @@ import com.onesignal.platform.notification.domain.DeliveryLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,4 +44,18 @@ public interface DeliveryLogRepository extends JpaRepository<DeliveryLog, UUID> 
     List<Object[]> findProviderAggregates(@org.springframework.data.repository.query.Param("appId") UUID appId);
 
     List<DeliveryLog> findByAppIdAndCreatedAtAfterOrderByCreatedAtAsc(UUID appId, java.time.Instant since);
+
+    @Query("SELECT COALESCE(dl.errorMessage, 'Unknown'), COUNT(dl) " +
+           "FROM DeliveryLog dl WHERE dl.appId = :appId AND dl.status = 'FAILED' " +
+           "AND dl.createdAt >= :since GROUP BY dl.errorMessage ORDER BY COUNT(dl) DESC")
+    List<Object[]> findFailureReasonAggregates(@Param("appId") UUID appId, @Param("since") Instant since);
+
+    @Query("SELECT FUNCTION('date_part', 'dow', dl.createdAt), FUNCTION('date_part', 'hour', dl.createdAt), COUNT(dl) " +
+           "FROM DeliveryLog dl WHERE dl.appId = :appId AND dl.createdAt >= :since " +
+           "GROUP BY FUNCTION('date_part', 'dow', dl.createdAt), FUNCTION('date_part', 'hour', dl.createdAt)")
+    List<Object[]> findHourlyDayOfWeekAggregates(@Param("appId") UUID appId, @Param("since") Instant since);
+
+    @Query("SELECT dl.provider, dl.status, COUNT(dl), AVG(COALESCE(dl.latencyMs, 0)) " +
+           "FROM DeliveryLog dl WHERE dl.appId = :appId AND dl.createdAt >= :since GROUP BY dl.provider, dl.status")
+    List<Object[]> findProviderAggregatesAfter(@Param("appId") UUID appId, @Param("since") Instant since);
 }

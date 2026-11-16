@@ -20,6 +20,15 @@ export const membersApi = {
     await apiClient.delete(`/organizations/${orgId}/members/${membershipId}`)
   },
 
+  async updateProfile(
+    orgId: string,
+    membershipId: string,
+    payload: { fullName?: string; avatarUrl?: string | null; removeAvatar?: boolean }
+  ): Promise<Member> {
+    const res = await apiClient.put<Member>(`/organizations/${orgId}/members/${membershipId}`, payload)
+    return res.data
+  },
+
   async invite(orgId: string, payload: { email: string; roleId: string; appId?: string | null }): Promise<Invitation> {
     const res = await apiClient.post<Invitation>(`/organizations/${orgId}/invitations`, payload)
     return res.data

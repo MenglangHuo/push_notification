@@ -4,11 +4,15 @@ import com.onesignal.platform.iam.domain.UserMfa;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface UserMfaRepository extends JpaRepository<UserMfa, UUID> {
     Optional<UserMfa> findByUserId(UUID userId);
+
+    @Transactional
     void deleteByUserId(UUID userId);
 }

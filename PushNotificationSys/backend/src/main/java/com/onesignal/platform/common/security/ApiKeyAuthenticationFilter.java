@@ -34,21 +34,31 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
+        // Admin endpoints strictly authenticate via user JWT Bearer tokens
+        if (path.startsWith("/admin/api/v1/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // 1. Customer Server REST API (/api/v1/**)
-        String apiKeyHeader = request.getHeader("X-Api-Key");
-        if (apiKeyHeader != null && !apiKeyHeader.isBlank()) {
-            Optional<ApiKey> keyOpt = apiKeyService.verifyAndTouchKey(apiKeyHeader.trim(), KeyType.SERVER_REST);
-            if (keyOpt.isPresent()) {
-                authenticateApiKey(request, keyOpt.get(), "ROLE_API_CLIENT");
+        if (path.startsWith("/api/v1/")) {
+            String apiKeyHeader = request.getHeader("X-Api-Key");
+            if (apiKeyHeader != null && !apiKeyHeader.isBlank()) {
+                Optional<ApiKey> keyOpt = apiKeyService.verifyAndTouchKey(apiKeyHeader.trim(), KeyType.SERVER_REST);
+                if (keyOpt.isPresent()) {
+                    authenticateApiKey(request, keyOpt.get(), "ROLE_API_CLIENT");
+                }
             }
         }
 
         // 2. Client Mobile / Web SDK API (/sdk/v1/**)
-        String sdkKeyHeader = request.getHeader("X-Sdk-Key");
-        if (sdkKeyHeader != null && !sdkKeyHeader.isBlank()) {
-            Optional<ApiKey> keyOpt = apiKeyService.verifyAndTouchKey(sdkKeyHeader.trim(), KeyType.SDK_PUBLIC);
-            if (keyOpt.isPresent()) {
-                authenticateApiKey(request, keyOpt.get(), "ROLE_SDK_CLIENT");
+        if (path.startsWith("/sdk/v1/")) {
+            String sdkKeyHeader = request.getHeader("X-Sdk-Key");
+            if (sdkKeyHeader != null && !sdkKeyHeader.isBlank()) {
+                Optional<ApiKey> keyOpt = apiKeyService.verifyAndTouchKey(sdkKeyHeader.trim(), KeyType.SDK_PUBLIC);
+                if (keyOpt.isPresent()) {
+                    authenticateApiKey(request, keyOpt.get(), "ROLE_SDK_CLIENT");
+                }
             }
         }
 

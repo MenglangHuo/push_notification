@@ -56,4 +56,11 @@ public class AuthController {
         UUID userId = TenantContextHolder.getUserId();
         return ResponseEntity.ok(authService.getUserProfile(userId));
     }
+
+    @PutMapping("/me/profile")
+    public ResponseEntity<AuthDto.UserProfileResponse> updateCurrentUserProfile(
+            @Valid @RequestBody AuthDto.UpdateProfileRequest request) {
+        UUID userId = TenantContextHolder.getUserId();
+        return ResponseEntity.ok(authService.updateUserProfile(userId, request));
+    }
 }

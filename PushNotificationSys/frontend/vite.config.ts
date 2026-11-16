@@ -134,6 +134,12 @@ export default defineConfig(({ mode }) => {
           ws: true,
           configure: configureProxyLogging,
         },
+        '/uploads': {
+          target: proxyTarget,
+          changeOrigin: true,
+          secure: false,
+          configure: configureProxyLogging,
+        },
       }
     : undefined
 
